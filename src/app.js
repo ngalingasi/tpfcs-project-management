@@ -16,6 +16,7 @@ const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utils/ApiError');
 
 const app = express();
+app.disable('etag'); // Prevent etag leaking internal file info
 
 // HTTP request logging
 if (config.env !== 'test') {
@@ -24,7 +25,20 @@ if (config.env !== 'test') {
 }
 
 // Security headers
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: true,
+  crossOriginEmbedderPolicy: true,
+  crossOriginOpenerPolicy: true,
+  crossOriginResourcePolicy: { policy: 'same-site' },
+  dnsPrefetchControl: { allow: false },
+  frameguard: { action: 'DENY' },         // Prevent clickjacking
+  hidePoweredBy: true,                    // Remove X-Powered-By: Express
+  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true }, // 2 years + preload
+  ieNoOpen: true,
+  noSniff: true,                          // Prevent MIME sniffing
+  referrerPolicy: { policy: 'no-referrer' },
+  xssFilter: true,
+}));
 
 // Parse JSON and URL-encoded bodies
 app.use(express.json());
@@ -36,9 +50,23 @@ app.use(xss());
 // Gzip compression
 app.use(compression());
 
-// CORS
-app.use(cors());
-app.options('*', cors());
+// CORS — always restrict unless ALLOWED_ORIGINS=* is explicitly set
+const rawOrigins = (process.env.ALLOWED_ORIGINS || '').trim();
+const corsOrigin = rawOrigins === '*'
+  ? '*'
+  : rawOrigins
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+
+const corsOptions = {
+  origin: corsOrigin.length ? corsOrigin : false, // false = block all cross-origin if not configured
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: rawOrigins !== '*',
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // JWT via Passport
 app.use(passport.initialize());

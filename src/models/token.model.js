@@ -71,7 +71,8 @@ const generateAuthTokens = async (user) => {
 const generateResetPasswordToken = async (email) => {
   const rows = await query('SELECT user_id FROM users WHERE email = ? AND status = "active"', [email]);
   if (!rows.length) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'No user found with this email');
+    // Return silently — do not reveal whether email exists (prevents user enumeration)
+    return null;
   }
   const userId = rows[0].user_id;
   const expires = moment().add(config.jwt.resetPasswordExpirationMinutes, 'minutes');

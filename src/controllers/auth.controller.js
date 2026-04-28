@@ -3,15 +3,25 @@ const catchAsync = require('../utils/catchAsync');
 const authModel = require('../models/auth.model');
 const tokenModel = require('../models/token.model');
 const emailModel = require('../models/email.model');
-const userModel = require('../models/user.model');
+
+// Fields safe to expose in auth responses
+const SAFE_USER_FIELDS = [
+  'user_id', 'full_name', 'username', 'email',
+  'mobile', 'gender', 'avatar', 'role', 'status',
+  'must_change_password',
+];
+
+const sanitizeUser = (user) =>
+  SAFE_USER_FIELDS.reduce((obj, key) => {
+    if (user[key] !== undefined) obj[key] = user[key];
+    return obj;
+  }, {});
 
 const login = catchAsync(async (req, res) => {
   const { login, password } = req.body;
   const user = await authModel.loginUser(login, password);
   const tokens = await tokenModel.generateAuthTokens(user);
-  // Strip hash before sending
-  const { password_hash, ...safeUser } = user;
-  res.status(httpStatus.OK).send({ user: safeUser, tokens });
+  res.status(httpStatus.OK).send({ user: sanitizeUser(user), tokens });
 });
 
 const logout = catchAsync(async (req, res) => {
@@ -26,7 +36,10 @@ const refreshTokens = catchAsync(async (req, res) => {
 
 const forgotPassword = catchAsync(async (req, res) => {
   const resetToken = await tokenModel.generateResetPasswordToken(req.body.email);
-  await emailModel.sendResetPasswordEmail(req.body.email, resetToken);
+  // Send email only if user exists — always respond 204 to prevent email enumeration
+  if (resetToken) {
+    await emailModel.sendResetPasswordEmail(req.body.email, resetToken);
+  }
   res.status(httpStatus.NO_CONTENT).send();
 });
 
@@ -41,7 +54,7 @@ const changePassword = catchAsync(async (req, res) => {
 });
 
 const getMe = catchAsync(async (req, res) => {
-  res.send(req.user);
+  res.send(sanitizeUser(req.user));
 });
 
 module.exports = { login, logout, refreshTokens, forgotPassword, resetPassword, changePassword, getMe };
