@@ -1,0 +1,35 @@
+const express = require('express');
+const authRoute = require('./auth.route');
+const userRoute = require('./user.route');
+const projectRoute = require('./project.route');
+const objectiveRoute = require('./objective.route');
+const targetRoute = require('./target.route');
+const activityRoute = require('./activity.route');
+const documentRoute = require('./document.route');
+const lookupRoute = require('./lookup.route');
+const budgetRoute = require('./budget.route');
+const config = require('../../config/config');
+
+const router = express.Router();
+
+const defaultRoutes = [
+  { path: '/auth', route: authRoute },
+  { path: '/users', route: userRoute },
+  { path: '/projects', route: projectRoute },
+  { path: '/objectives', route: objectiveRoute },
+  { path: '/targets', route: targetRoute },
+  { path: '/activities', route: activityRoute },
+  { path: '/documents', route: documentRoute },
+  { path: '/lookups', route: lookupRoute },
+  { path: '/budget', route: budgetRoute },
+];
+
+defaultRoutes.forEach(({ path, route }) => router.use(path, route));
+
+// Swagger docs in development
+if (config.env === 'development') {
+  const docsRoute = require('./docs.route');
+  router.use('/docs', docsRoute);
+}
+
+module.exports = router;

@@ -1,0 +1,1299 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-04-26T00:00:00.000Z",
+  "__export_source": "tpfcs-projects",
+  "resources": [
+    {
+      "_id": "wrk_tpfcs",
+      "_type": "workspace",
+      "name": "TPFCS Project Management API",
+      "description": "All endpoints for the TPFCS Project Management System"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_tpfcs",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3000/v1",
+        "access_token": "",
+        "refresh_token": ""
+      }
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\ud83d\udd10 Auth"
+    },
+    {
+      "_id": "req_auth_login",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{ base_url }}/auth/login",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"login\": \"admin\",\n  \"password\": \"password\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_logout",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{ base_url }}/auth/logout",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{{ refresh_token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_refresh",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Refresh Tokens",
+      "method": "POST",
+      "url": "{{ base_url }}/auth/refresh-tokens",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{{ refresh_token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_forgot",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Forgot Password",
+      "method": "POST",
+      "url": "{{ base_url }}/auth/forgot-password",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"admin@tpfcs.go.tz\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_reset",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Reset Password",
+      "method": "POST",
+      "url": "{{ base_url }}/auth/reset-password?token=RESET_TOKEN_HERE",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"password\": \"NewPassword@2024!\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_change_password",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Change Password",
+      "method": "POST",
+      "url": "{{ base_url }}/auth/change-password",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currentPassword\": \"password\",\n  \"newPassword\": \"NewPassword@2024!\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_me",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Get My Profile",
+      "method": "GET",
+      "url": "{{ base_url }}/auth/me",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_users",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\ud83d\udc64 Users"
+    },
+    {
+      "_id": "req_users_create",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Create User",
+      "method": "POST",
+      "url": "{{ base_url }}/users",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"full_name\": \"John Doe\",\n  \"username\": \"johndoe\",\n  \"email\": \"johndoe@tpfcs.go.tz\",\n  \"mobile\": \"+255712345678\",\n  \"gender\": \"male\",\n  \"role\": \"manager\"\n}"
+      }
+    },
+    {
+      "_id": "req_users_list",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "List Users",
+      "method": "GET",
+      "url": "{{ base_url }}/users?page=1&limit=10",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_users_list_filter",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "List Users (filtered)",
+      "method": "GET",
+      "url": "{{ base_url }}/users?page=1&limit=10&role=manager&status=active&search=john",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_users_get",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Get User",
+      "method": "GET",
+      "url": "{{ base_url }}/users/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_users_update",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Update User",
+      "method": "PATCH",
+      "url": "{{ base_url }}/users/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"full_name\": \"John Updated\",\n  \"mobile\": \"+255787654321\",\n  \"role\": \"admin\",\n  \"status\": \"active\"\n}"
+      }
+    },
+    {
+      "_id": "req_users_delete",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "Delete User (Deactivate)",
+      "method": "DELETE",
+      "url": "{{ base_url }}/users/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_projects",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\ud83d\udcc1 Projects"
+    },
+    {
+      "_id": "req_projects_create",
+      "_type": "request",
+      "parentId": "fld_projects",
+      "name": "Create Project",
+      "method": "POST",
+      "url": "{{ base_url }}/projects",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Rural Water Supply Project\",\n  \"programme_name\": \"Water Sector Development Programme\",\n  \"project_nature\": \"Infrastructure\",\n  \"sector_id\": 1,\n  \"start_date\": \"2024-01-01\",\n  \"end_date\": \"2026-12-31\",\n  \"fund_structure\": \"Government\",\n  \"funding\": \"Ministry of Water\",\n  \"estimated_cost\": 5000000.00,\n  \"project_life_span\": 3,\n  \"project_background\": \"This project aims to improve access to clean water in rural areas.\",\n  \"cost_center\": \"CC-WATER-001\",\n  \"project_reference\": \"MoW/2024/001\",\n  \"relevancy_fypds\": \"FYDP III\",\n  \"implementation_modality\": \"Direct Implementation\",\n  \"compensation\": \"None\",\n  \"job_created_no\": \"150\",\n  \"project_manager_id\": 1,\n  \"regions\": [1, 2, 3],\n  \"implementers\": [\n    {\n      \"implementer_id\": 1,\n      \"vote_name\": \"Ministry of Water\",\n      \"vote_code\": \"49\",\n      \"sub_vote_code\": \"4901\",\n      \"sub_vote_name\": \"Water Resources\",\n      \"cost_center\": \"CC-WATER-001\",\n      \"involvement\": \"Lead Implementer\"\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_projects_list",
+      "_type": "request",
+      "parentId": "fld_projects",
+      "name": "List Projects",
+      "method": "GET",
+      "url": "{{ base_url }}/projects?page=1&limit=10",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_projects_list_filter",
+      "_type": "request",
+      "parentId": "fld_projects",
+      "name": "List Projects (filtered)",
+      "method": "GET",
+      "url": "{{ base_url }}/projects?page=1&limit=10&sector_id=1&search=water",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_projects_get",
+      "_type": "request",
+      "parentId": "fld_projects",
+      "name": "Get Project",
+      "method": "GET",
+      "url": "{{ base_url }}/projects/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_projects_update",
+      "_type": "request",
+      "parentId": "fld_projects",
+      "name": "Update Project",
+      "method": "PATCH",
+      "url": "{{ base_url }}/projects/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Rural Water Supply Project (Revised)\",\n  \"estimated_cost\": 5500000.00,\n  \"end_date\": \"2027-06-30\"\n}"
+      }
+    },
+    {
+      "_id": "req_projects_delete",
+      "_type": "request",
+      "parentId": "fld_projects",
+      "name": "Delete Project",
+      "method": "DELETE",
+      "url": "{{ base_url }}/projects/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_objectives",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\ud83c\udfaf Objectives"
+    },
+    {
+      "_id": "req_objectives_create",
+      "_type": "request",
+      "parentId": "fld_objectives",
+      "name": "Create Objective (under Project)",
+      "method": "POST",
+      "url": "{{ base_url }}/projects/1/objectives",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"project_id\": 1,\n  \"title\": \"Increase clean water access to 80% of households\",\n  \"description\": \"Construct 50 new boreholes and rehabilitate 20 existing ones.\",\n  \"priority\": \"high\",\n  \"status\": \"pending\"\n}"
+      }
+    },
+    {
+      "_id": "req_objectives_list",
+      "_type": "request",
+      "parentId": "fld_objectives",
+      "name": "List Objectives (by Project)",
+      "method": "GET",
+      "url": "{{ base_url }}/projects/1/objectives",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_objectives_get",
+      "_type": "request",
+      "parentId": "fld_objectives",
+      "name": "Get Objective",
+      "method": "GET",
+      "url": "{{ base_url }}/objectives/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_objectives_update",
+      "_type": "request",
+      "parentId": "fld_objectives",
+      "name": "Update Objective",
+      "method": "PATCH",
+      "url": "{{ base_url }}/objectives/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"title\": \"Increase clean water access to 90% of households\",\n  \"priority\": \"high\",\n  \"status\": \"in_progress\"\n}"
+      }
+    },
+    {
+      "_id": "req_objectives_delete",
+      "_type": "request",
+      "parentId": "fld_objectives",
+      "name": "Delete Objective",
+      "method": "DELETE",
+      "url": "{{ base_url }}/objectives/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_targets",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\ud83d\udcca Targets"
+    },
+    {
+      "_id": "req_targets_create",
+      "_type": "request",
+      "parentId": "fld_targets",
+      "name": "Create Target (under Objective)",
+      "method": "POST",
+      "url": "{{ base_url }}/objectives/1/targets",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"objective_id\": 1,\n  \"name\": \"Number of boreholes constructed\",\n  \"metric_type\": \"count\",\n  \"unit\": \"boreholes\",\n  \"target_value\": 50,\n  \"deadline\": \"2025-12-31\",\n  \"status\": \"on_track\"\n}"
+      }
+    },
+    {
+      "_id": "req_targets_list",
+      "_type": "request",
+      "parentId": "fld_targets",
+      "name": "List Targets (by Objective)",
+      "method": "GET",
+      "url": "{{ base_url }}/objectives/1/targets",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_targets_get",
+      "_type": "request",
+      "parentId": "fld_targets",
+      "name": "Get Target",
+      "method": "GET",
+      "url": "{{ base_url }}/targets/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_targets_update",
+      "_type": "request",
+      "parentId": "fld_targets",
+      "name": "Update Target",
+      "method": "PATCH",
+      "url": "{{ base_url }}/targets/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"current_value\": 20,\n  \"status\": \"on_track\"\n}"
+      }
+    },
+    {
+      "_id": "req_targets_delete",
+      "_type": "request",
+      "parentId": "fld_targets",
+      "name": "Delete Target",
+      "method": "DELETE",
+      "url": "{{ base_url }}/targets/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_activities",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\u2699\ufe0f Activities"
+    },
+    {
+      "_id": "req_activities_create",
+      "_type": "request",
+      "parentId": "fld_activities",
+      "name": "Create Activity",
+      "method": "POST",
+      "url": "{{ base_url }}/activities",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"target_id\": 1,\n  \"region_id\": 1,\n  \"name\": \"Construct borehole at Mwanakwerekwe\",\n  \"description\": \"Drill and equip a new borehole in Mwanakwerekwe ward.\",\n  \"council\": \"Zanzibar Urban West\",\n  \"ward\": \"Mwanakwerekwe\",\n  \"street\": \"Borehole Street\",\n  \"road_name\": \"Borehole Road\",\n  \"latitude\": -6.1659,\n  \"longitude\": 39.2026,\n  \"assigned_user_id\": 2,\n  \"supervisor_id\": 1,\n  \"start_date\": \"2024-03-01\",\n  \"end_date\": \"2024-06-30\",\n  \"status\": \"pending\",\n  \"budgeted_amount\": 500000.00\n}"
+      }
+    },
+    {
+      "_id": "req_activities_list",
+      "_type": "request",
+      "parentId": "fld_activities",
+      "name": "List Activities",
+      "method": "GET",
+      "url": "{{ base_url }}/activities?page=1&limit=10",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_activities_list_filter",
+      "_type": "request",
+      "parentId": "fld_activities",
+      "name": "List Activities (filtered)",
+      "method": "GET",
+      "url": "{{ base_url }}/activities?page=1&limit=10&target_id=1&status=in_progress&region_id=1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_activities_get",
+      "_type": "request",
+      "parentId": "fld_activities",
+      "name": "Get Activity",
+      "method": "GET",
+      "url": "{{ base_url }}/activities/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_activities_update",
+      "_type": "request",
+      "parentId": "fld_activities",
+      "name": "Update Activity",
+      "method": "PATCH",
+      "url": "{{ base_url }}/activities/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"progress\": 45.00,\n  \"status\": \"in_progress\"\n}"
+      }
+    },
+    {
+      "_id": "req_activities_complete",
+      "_type": "request",
+      "parentId": "fld_activities",
+      "name": "Mark Activity Completed",
+      "method": "PATCH",
+      "url": "{{ base_url }}/activities/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"progress\": 100.00,\n  \"status\": \"completed\"\n}"
+      }
+    },
+    {
+      "_id": "req_activities_history",
+      "_type": "request",
+      "parentId": "fld_activities",
+      "name": "Get Activity Status History",
+      "method": "GET",
+      "url": "{{ base_url }}/activities/1/history",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_activities_delete",
+      "_type": "request",
+      "parentId": "fld_activities",
+      "name": "Delete Activity",
+      "method": "DELETE",
+      "url": "{{ base_url }}/activities/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_documents",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\ud83d\udcc4 Documents"
+    },
+    {
+      "_id": "req_documents_upload",
+      "_type": "request",
+      "parentId": "fld_documents",
+      "name": "Upload Document (to Project)",
+      "method": "POST",
+      "url": "{{ base_url }}/projects/1/documents",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": [
+          {
+            "name": "file",
+            "type": "file",
+            "fileName": "project_report.pdf"
+          },
+          {
+            "name": "name",
+            "value": "Q1 Project Report 2024"
+          },
+          {
+            "name": "project_id",
+            "value": "1"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_documents_list",
+      "_type": "request",
+      "parentId": "fld_documents",
+      "name": "List Documents (by Project)",
+      "method": "GET",
+      "url": "{{ base_url }}/projects/1/documents",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_documents_get",
+      "_type": "request",
+      "parentId": "fld_documents",
+      "name": "Get Document",
+      "method": "GET",
+      "url": "{{ base_url }}/documents/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_documents_new_version",
+      "_type": "request",
+      "parentId": "fld_documents",
+      "name": "Upload New Version",
+      "method": "POST",
+      "url": "{{ base_url }}/documents/1/versions",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": [
+          {
+            "name": "file",
+            "type": "file",
+            "fileName": "project_report_v2.pdf"
+          }
+        ]
+      }
+    },
+    {
+      "_id": "req_documents_download",
+      "_type": "request",
+      "parentId": "fld_documents",
+      "name": "Download Document (latest)",
+      "method": "GET",
+      "url": "{{ base_url }}/documents/1/download",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_documents_download_version",
+      "_type": "request",
+      "parentId": "fld_documents",
+      "name": "Download Document (specific version)",
+      "method": "GET",
+      "url": "{{ base_url }}/documents/1/download/2",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_documents_delete",
+      "_type": "request",
+      "parentId": "fld_documents",
+      "name": "Delete Document",
+      "method": "DELETE",
+      "url": "{{ base_url }}/documents/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_lookups",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\ud83d\udd16 Lookups"
+    },
+    {
+      "_id": "fld_sectors",
+      "_type": "request_group",
+      "parentId": "fld_lookups",
+      "name": "Sectors"
+    },
+    {
+      "_id": "req_sectors_create",
+      "_type": "request",
+      "parentId": "fld_sectors",
+      "name": "Create Sector",
+      "method": "POST",
+      "url": "{{ base_url }}/lookups/sectors",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Water and Sanitation\",\n  \"parent_sector_id\": null\n}"
+      }
+    },
+    {
+      "_id": "req_sectors_create_child",
+      "_type": "request",
+      "parentId": "fld_sectors",
+      "name": "Create Sub-Sector",
+      "method": "POST",
+      "url": "{{ base_url }}/lookups/sectors",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Rural Water Supply\",\n  \"parent_sector_id\": 1\n}"
+      }
+    },
+    {
+      "_id": "req_sectors_list",
+      "_type": "request",
+      "parentId": "fld_sectors",
+      "name": "List Sectors",
+      "method": "GET",
+      "url": "{{ base_url }}/lookups/sectors",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_sectors_get",
+      "_type": "request",
+      "parentId": "fld_sectors",
+      "name": "Get Sector",
+      "method": "GET",
+      "url": "{{ base_url }}/lookups/sectors/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_sectors_update",
+      "_type": "request",
+      "parentId": "fld_sectors",
+      "name": "Update Sector",
+      "method": "PATCH",
+      "url": "{{ base_url }}/lookups/sectors/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Water, Sanitation and Hygiene\"\n}"
+      }
+    },
+    {
+      "_id": "req_sectors_delete",
+      "_type": "request",
+      "parentId": "fld_sectors",
+      "name": "Delete Sector",
+      "method": "DELETE",
+      "url": "{{ base_url }}/lookups/sectors/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_regions",
+      "_type": "request_group",
+      "parentId": "fld_lookups",
+      "name": "Regions"
+    },
+    {
+      "_id": "req_regions_create",
+      "_type": "request",
+      "parentId": "fld_regions",
+      "name": "Create Region",
+      "method": "POST",
+      "url": "{{ base_url }}/lookups/regions",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"region_name\": \"Dar es Salaam\"\n}"
+      }
+    },
+    {
+      "_id": "req_regions_list",
+      "_type": "request",
+      "parentId": "fld_regions",
+      "name": "List Regions",
+      "method": "GET",
+      "url": "{{ base_url }}/lookups/regions",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_regions_get",
+      "_type": "request",
+      "parentId": "fld_regions",
+      "name": "Get Region",
+      "method": "GET",
+      "url": "{{ base_url }}/lookups/regions/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_regions_update",
+      "_type": "request",
+      "parentId": "fld_regions",
+      "name": "Update Region",
+      "method": "PATCH",
+      "url": "{{ base_url }}/lookups/regions/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"region_name\": \"Dar es Salaam Region\"\n}"
+      }
+    },
+    {
+      "_id": "req_regions_delete",
+      "_type": "request",
+      "parentId": "fld_regions",
+      "name": "Delete Region",
+      "method": "DELETE",
+      "url": "{{ base_url }}/lookups/regions/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_implementers",
+      "_type": "request_group",
+      "parentId": "fld_lookups",
+      "name": "Implementers"
+    },
+    {
+      "_id": "req_implementers_create",
+      "_type": "request",
+      "parentId": "fld_implementers",
+      "name": "Create Implementer",
+      "method": "POST",
+      "url": "{{ base_url }}/lookups/implementers",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Ministry of Water\",\n  \"description\": \"Government ministry responsible for water resources management.\"\n}"
+      }
+    },
+    {
+      "_id": "req_implementers_list",
+      "_type": "request",
+      "parentId": "fld_implementers",
+      "name": "List Implementers",
+      "method": "GET",
+      "url": "{{ base_url }}/lookups/implementers",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_implementers_get",
+      "_type": "request",
+      "parentId": "fld_implementers",
+      "name": "Get Implementer",
+      "method": "GET",
+      "url": "{{ base_url }}/lookups/implementers/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_implementers_update",
+      "_type": "request",
+      "parentId": "fld_implementers",
+      "name": "Update Implementer",
+      "method": "PATCH",
+      "url": "{{ base_url }}/lookups/implementers/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Ministry of Water and Irrigation\",\n  \"description\": \"Updated ministry name after restructuring.\"\n}"
+      }
+    },
+    {
+      "_id": "req_implementers_delete",
+      "_type": "request",
+      "parentId": "fld_implementers",
+      "name": "Delete Implementer",
+      "method": "DELETE",
+      "url": "{{ base_url }}/lookups/implementers/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "fld_budget",
+      "_type": "request_group",
+      "parentId": "wrk_tpfcs",
+      "name": "\ud83d\udcb0 Budget Management"
+    },
+    {
+      "_id": "req_budget_project_summary",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "Project Budget Summary",
+      "method": "GET",
+      "url": "{{ base_url }}/budget/projects/1/summary",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_budget_project_status",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "Project Budget Status",
+      "method": "GET",
+      "url": "{{ base_url }}/budget/projects/1/status",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_budget_allocate_target",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "Allocate Budget to Target",
+      "method": "PUT",
+      "url": "{{ base_url }}/budget/targets/1/allocate",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"amount\": 2000000.00\n}"
+      }
+    },
+    {
+      "_id": "req_budget_target_summary",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "Target Budget Summary",
+      "method": "GET",
+      "url": "{{ base_url }}/budget/targets/1/summary",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_budget_request_revision",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "Request Budget Revision (Activity)",
+      "method": "POST",
+      "url": "{{ base_url }}/budget/activities/1/revisions",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"requested_amount\": 750000.00,\n  \"reason\": \"Unforeseen geological conditions require additional drilling equipment and materials.\"\n}"
+      }
+    },
+    {
+      "_id": "req_budget_list_revisions",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "List Budget Revisions",
+      "method": "GET",
+      "url": "{{ base_url }}/budget/revisions?status=pending",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_budget_get_revision",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "Get Revision",
+      "method": "GET",
+      "url": "{{ base_url }}/budget/revisions/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_budget_approve_revision",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "Approve Revision",
+      "method": "PUT",
+      "url": "{{ base_url }}/budget/revisions/1/approve",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"review_notes\": \"Approved after site verification confirmed the geological conditions.\"\n}"
+      }
+    },
+    {
+      "_id": "req_budget_reject_revision",
+      "_type": "request",
+      "parentId": "fld_budget",
+      "name": "Reject Revision",
+      "method": "PUT",
+      "url": "{{ base_url }}/budget/revisions/1/reject",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ access_token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"review_notes\": \"Insufficient justification provided. Please resubmit with cost breakdown.\"\n}"
+      }
+    }
+  ]
+}
