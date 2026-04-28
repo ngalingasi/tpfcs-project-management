@@ -1,0 +1,14 @@
+meta {
+  name: List Projects Filtered
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/projects?page=1&limit=10&sector_id=1&search=water
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

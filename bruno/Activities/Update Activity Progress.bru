@@ -1,0 +1,21 @@
+meta {
+  name: Update Activity Progress
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{base_url}}/activities/1
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "progress": 45,
+    "status": "in_progress"
+  }
+}

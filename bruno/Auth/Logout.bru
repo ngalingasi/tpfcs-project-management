@@ -1,0 +1,29 @@
+meta {
+  name: Logout
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/auth/logout
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "refreshToken": "{{refresh_token}}"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 204) {
+    bru.setEnvVar("access_token", "");
+    bru.setEnvVar("refresh_token", "");
+    console.log("✅ Logged out, tokens cleared");
+  }
+}

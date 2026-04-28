@@ -1,0 +1,14 @@
+meta {
+  name: List Users Filtered
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/users?page=1&limit=10&role=manager&status=active
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

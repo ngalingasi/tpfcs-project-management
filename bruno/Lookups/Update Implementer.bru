@@ -1,0 +1,20 @@
+meta {
+  name: Update Implementer
+  type: http
+  seq: 13
+}
+
+patch {
+  url: {{base_url}}/lookups/implementers/1
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Ministry of Water and Irrigation"
+  }
+}

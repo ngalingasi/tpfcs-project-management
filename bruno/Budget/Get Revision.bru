@@ -1,0 +1,14 @@
+meta {
+  name: Get Revision
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/budget/revisions/1
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

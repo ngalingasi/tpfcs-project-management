@@ -1,0 +1,14 @@
+meta {
+  name: List Regions
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/lookups/regions
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

@@ -1,0 +1,14 @@
+meta {
+  name: Get Sector
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/lookups/sectors/1
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

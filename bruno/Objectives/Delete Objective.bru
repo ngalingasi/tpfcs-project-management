@@ -1,0 +1,14 @@
+meta {
+  name: Delete Objective
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/objectives/1
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

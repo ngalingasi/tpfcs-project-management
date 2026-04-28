@@ -1,0 +1,20 @@
+meta {
+  name: Mark Completed
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{base_url}}/activities/1
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "status": "completed"
+  }
+}

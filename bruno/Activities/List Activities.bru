@@ -1,0 +1,14 @@
+meta {
+  name: List Activities
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/activities?page=1&limit=10
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

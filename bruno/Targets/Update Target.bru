@@ -1,0 +1,21 @@
+meta {
+  name: Update Target
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/targets/1
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "current_value": 20,
+    "status": "on_track"
+  }
+}

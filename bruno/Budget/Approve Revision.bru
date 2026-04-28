@@ -1,0 +1,20 @@
+meta {
+  name: Approve Revision
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{base_url}}/budget/revisions/1/approve
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "review_notes": "Approved after site verification."
+  }
+}

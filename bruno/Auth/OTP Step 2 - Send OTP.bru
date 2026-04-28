@@ -1,0 +1,28 @@
+meta {
+  name: OTP Step 2 - Send OTP
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{base_url}}/auth/send-otp
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "admin",
+    "channel": "email"
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+  if (data && data.status) {
+    console.log("✅ OTP sent via:", data.channel);
+    console.log("Sent to:", data.maskedContact);
+  } else {
+    console.log("❌ Failed:", data.message);
+  }
+}

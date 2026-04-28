@@ -1,0 +1,14 @@
+meta {
+  name: List Activities Filtered
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/activities?page=1&limit=10&target_id=1&status=in_progress
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

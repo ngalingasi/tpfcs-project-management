@@ -1,0 +1,20 @@
+meta {
+  name: Update Region
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{base_url}}/lookups/regions/1
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "region_name": "Dar es Salaam Region"
+  }
+}

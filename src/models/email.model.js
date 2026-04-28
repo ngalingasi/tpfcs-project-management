@@ -67,4 +67,33 @@ const sendWelcomeEmail = async (to, fullName, username, tempPassword) => {
   await sendEmail(to, subject, html);
 };
 
-module.exports = { sendEmail, sendResetPasswordEmail, sendVerificationEmail, sendWelcomeEmail };
+/**
+ * Send OTP via email
+ */
+const sendOtpEmail = async (to, otp_code) => {
+  const subject = 'Your One-Time Password (OTP) – TPFCS';
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;
+                border:1px solid #e0e0e0;border-radius:8px;padding:32px;">
+      <h2 style="color:#333;margin-bottom:8px;">Login Verification</h2>
+      <p style="color:#555;">
+        Use the OTP below to complete your sign-in.
+        It expires in <strong>10 minutes</strong>.
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <span style="font-size:40px;font-weight:bold;letter-spacing:12px;
+                     color:#1a1a2e;background:#f4f4f8;padding:16px 24px;
+                     border-radius:8px;display:inline-block;">
+          ${otp_code}
+        </span>
+      </div>
+      <p style="color:#888;font-size:13px;">
+        If you did not attempt to log in, please ignore this email
+        or contact your administrator immediately.
+      </p>
+    </div>
+  `;
+  await sendEmail(to, subject, html);
+};
+
+module.exports = { sendEmail, sendResetPasswordEmail, sendVerificationEmail, sendWelcomeEmail, sendOtpEmail };

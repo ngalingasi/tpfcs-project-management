@@ -1,0 +1,14 @@
+meta {
+  name: Get Valid Statuses
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{base_url}}/activities/meta/statuses
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

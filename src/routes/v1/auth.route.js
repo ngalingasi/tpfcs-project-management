@@ -4,6 +4,7 @@ const Joi = require('joi');
 const validate = require('../../middlewares/validate');
 const auth = require('../../middlewares/auth');
 const authController = require('../../controllers/auth.controller');
+const otpController  = require('../../controllers/otp.controller');
 
 const loginSchema = {
   body: Joi.object().keys({
@@ -43,7 +44,38 @@ const changePasswordSchema = {
  *   description: Authentication endpoints
  */
 
+// ─── Standard login (no OTP) ─────────────────────────────────────────────────
 router.post('/login', validate(loginSchema), authController.login);
+
+// ─── OTP 2FA login (3-step) ──────────────────────────────────────────────────
+const validateCredentialsSchema = {
+  body: Joi.object().keys({
+    login:    Joi.string().required(),
+    password: Joi.string().required(),
+  }),
+};
+
+const sendOtpSchema = {
+  body: Joi.object().keys({
+    login:   Joi.string().required(),
+    channel: Joi.string().valid('email', 'sms').required(),
+  }),
+};
+
+const verifyOtpSchema = {
+  body: Joi.object().keys({
+    login: Joi.string().required(),
+    otp:   Joi.string().length(6).pattern(/^\d{6}$/).required()
+      .description('6-digit OTP code'),
+  }),
+};
+
+// Step 1 — validate credentials, return available channels
+router.post('/validate-credentials', validate(validateCredentialsSchema), otpController.validateCredentials);
+// Step 2 — user picks channel, OTP is sent
+router.post('/send-otp', validate(sendOtpSchema), otpController.sendOtp);
+// Step 3 — verify OTP, receive JWT tokens
+router.post('/verify-otp', validate(verifyOtpSchema), otpController.verifyOtp);
 router.post('/logout', validate(refreshSchema), authController.logout);
 router.post('/refresh-tokens', validate(refreshSchema), authController.refreshTokens);
 router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);

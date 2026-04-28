@@ -1,0 +1,30 @@
+meta {
+  name: OTP Step 3 - Verify OTP
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{base_url}}/auth/verify-otp
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "admin",
+    "otp": "123456"
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+  if (data && data.tokens && data.tokens.access) {
+    bru.setEnvVar("access_token", data.tokens.access.token);
+    bru.setEnvVar("refresh_token", data.tokens.refresh.token);
+    console.log("✅ OTP verified — tokens saved!");
+    console.log("Access expires:", data.tokens.access.expires);
+  } else {
+    console.log("❌ Failed:", data.message);
+  }
+}

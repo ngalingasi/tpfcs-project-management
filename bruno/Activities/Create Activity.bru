@@ -1,0 +1,33 @@
+meta {
+  name: Create Activity
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/activities
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "target_id": 1,
+    "region_id": 1,
+    "name": "Construct borehole at Mwanakwerekwe",
+    "description": "Drill and equip a new borehole.",
+    "council": "Zanzibar Urban West",
+    "ward": "Mwanakwerekwe",
+    "latitude": -6.1659,
+    "longitude": 39.2026,
+    "assigned_user_id": 2,
+    "supervisor_id": 1,
+    "start_date": "2024-03-01",
+    "end_date": "2024-06-30",
+    "status": "pending",
+    "budgeted_amount": 500000.00
+  }
+}

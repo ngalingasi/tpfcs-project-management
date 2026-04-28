@@ -1,0 +1,37 @@
+meta {
+  name: Create Project
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/projects
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Rural Water Supply Project",
+    "programme_name": "Water Sector Development Programme",
+    "project_nature": "Infrastructure",
+    "sector_id": 1,
+    "start_date": "2024-01-01",
+    "end_date": "2026-12-31",
+    "funding": "Ministry of Water",
+    "estimated_cost": 5000000.00,
+    "project_life_span": 3,
+    "project_background": "Improve access to clean water.",
+    "cost_center": "CC-WATER-001",
+    "project_reference": "MoW/2024/001",
+    "relevancy_fypds": "FYDP III",
+    "implementation_modality": "Direct Implementation",
+    "job_created_no": "150",
+    "project_manager_id": 1,
+    "regions": [1, 2],
+    "implementers": [{"implementer_id": 1,"vote_name": "Ministry of Water","vote_code": "49","sub_vote_code": "4901","sub_vote_name": "Water Resources","cost_center": "CC-WATER-001","involvement": "Lead Implementer"}]
+  }
+}

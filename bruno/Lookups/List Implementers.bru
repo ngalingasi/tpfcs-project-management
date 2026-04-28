@@ -1,0 +1,14 @@
+meta {
+  name: List Implementers
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{base_url}}/lookups/implementers
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

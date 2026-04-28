@@ -1,0 +1,14 @@
+meta {
+  name: List Documents by Project
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/projects/1/documents
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

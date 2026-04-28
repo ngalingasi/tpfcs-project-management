@@ -1,0 +1,20 @@
+meta {
+  name: Update Sector
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/lookups/sectors/1
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Water, Sanitation and Hygiene"
+  }
+}

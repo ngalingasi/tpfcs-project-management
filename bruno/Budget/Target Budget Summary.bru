@@ -1,0 +1,14 @@
+meta {
+  name: Target Budget Summary
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/budget/targets/1/summary
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

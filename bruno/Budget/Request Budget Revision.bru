@@ -1,0 +1,21 @@
+meta {
+  name: Request Budget Revision
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/budget/activities/1/revisions
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "requested_amount": 750000.00,
+    "reason": "Unforeseen geological conditions require additional drilling equipment and materials."
+  }
+}

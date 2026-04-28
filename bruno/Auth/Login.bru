@@ -1,0 +1,32 @@
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "admin",
+    "password": "password"
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+
+  if (data && data.tokens && data.tokens.access) {
+    bru.setEnvVar("access_token", data.tokens.access.token);
+    bru.setEnvVar("refresh_token", data.tokens.refresh.token);
+    console.log("✅ Tokens saved to environment!");
+    console.log("Access expires:", data.tokens.access.expires);
+    console.log("Refresh expires:", data.tokens.refresh.expires);
+  } else {
+    console.log("❌ Login failed:", JSON.stringify(data));
+  }
+}

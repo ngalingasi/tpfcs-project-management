@@ -1,0 +1,14 @@
+meta {
+  name: Download Version
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/documents/1/download/2
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

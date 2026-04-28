@@ -1,0 +1,14 @@
+meta {
+  name: List Budget Revisions
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/budget/revisions?status=pending
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

@@ -26,6 +26,12 @@ const envVarsSchema = Joi.object()
     SMTP_USERNAME: Joi.string().description('SMTP username'),
     SMTP_PASSWORD: Joi.string().description('SMTP password'),
     EMAIL_FROM: Joi.string().description('Email from address'),
+    // BrandBox SMS
+    BRANDBOX_API_KEY:     Joi.string().description('BrandBox API key'),
+    BRANDBOX_API_SECRET:  Joi.string().description('BrandBox API secret'),
+    BRANDBOX_SENDER_NAME: Joi.string().default('TPFCS'),
+    // OTP
+    OTP_EXPIRY_MINUTES:   Joi.number().default(10),
     // File Upload
     UPLOAD_DIR: Joi.string().default('uploads'),
     MAX_FILE_SIZE: Joi.number().default(10485760), // 10MB
@@ -65,6 +71,16 @@ module.exports = {
       },
     },
     from: envVars.EMAIL_FROM,
+  },
+  sms: {
+    brandbox: {
+      apiKey:     envVars.BRANDBOX_API_KEY,
+      apiSecret:  envVars.BRANDBOX_API_SECRET,
+      senderName: envVars.BRANDBOX_SENDER_NAME,
+    },
+  },
+  otp: {
+    expiryMinutes: envVars.OTP_EXPIRY_MINUTES,
   },
   upload: {
     dir: envVars.UPLOAD_DIR,

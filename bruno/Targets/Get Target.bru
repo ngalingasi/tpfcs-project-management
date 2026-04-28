@@ -1,0 +1,14 @@
+meta {
+  name: Get Target
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/targets/1
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

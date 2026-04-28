@@ -1,0 +1,20 @@
+{
+  "environments": [
+    {
+      "name": "Local",
+      "variables": [
+        { "name": "base_url", "value": "http://localhost:3000/v1", "enabled": true },
+        { "name": "access_token", "value": "", "enabled": true, "secret": true },
+        { "name": "refresh_token", "value": "", "enabled": true, "secret": true }
+      ]
+    },
+    {
+      "name": "Production",
+      "variables": [
+        { "name": "base_url", "value": "https://projects.tpfcs.go.tz/v1", "enabled": true },
+        { "name": "access_token", "value": "", "enabled": true, "secret": true },
+        { "name": "refresh_token", "value": "", "enabled": true, "secret": true }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Update Project
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{base_url}}/projects/1
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Rural Water Supply Project (Revised)",
+    "estimated_cost": 5500000.00
+  }
+}

@@ -1,0 +1,14 @@
+meta {
+  name: Get Status History
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/activities/1/history
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}

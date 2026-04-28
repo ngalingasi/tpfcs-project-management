@@ -1,0 +1,21 @@
+meta {
+  name: Create Implementer
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{base_url}}/lookups/implementers
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Ministry of Water",
+    "description": "Government ministry for water resources."
+  }
+}

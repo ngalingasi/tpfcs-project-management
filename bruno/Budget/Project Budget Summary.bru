@@ -1,0 +1,14 @@
+meta {
+  name: Project Budget Summary
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/budget/projects/1/summary
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{access_token}}
+}
