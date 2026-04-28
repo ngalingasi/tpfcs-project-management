@@ -7,8 +7,5 @@ meta {
 get {
   url: {{base_url}}/projects?page=1&limit=10
   body: none
-  auth: bearer
-}
-auth:bearer {
-  token: {{access_token}}
+  auth: inherit
 }

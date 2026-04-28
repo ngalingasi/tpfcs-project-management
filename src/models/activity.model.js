@@ -38,7 +38,7 @@ const createActivity = async (body, creatorId) => {
     // Validate budget fits within target allocation
     await validateActivityBudget(target_id, Number(budgeted_amount), conn);
 
-    const [result] = await conn.execute(
+    const [result] = await conn.query(
       `INSERT INTO activities (target_id, region_id, name, description, main_activity_id, council, ward,
         street, road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id,
         start_date, end_date, progress, budgeted_amount, status, created_by)
@@ -64,10 +64,10 @@ const getActivities = async ({ page, limit, target_id, region_id, status, assign
   let where = '1=1';
   const params = [];
 
-  if (target_id)        { where += ' AND a.target_id = ?';        params.push(target_id); }
-  if (region_id)        { where += ' AND a.region_id = ?';        params.push(region_id); }
+  if (target_id)        { where += ' AND a.target_id = ?';        params.push(parseInt(target_id, 10)); }
+  if (region_id)        { where += ' AND a.region_id = ?';        params.push(parseInt(region_id, 10)); }
   if (status)           { where += ' AND a.status = ?';           params.push(status); }
-  if (assigned_user_id) { where += ' AND a.assigned_user_id = ?'; params.push(assigned_user_id); }
+  if (assigned_user_id) { where += ' AND a.assigned_user_id = ?'; params.push(parseInt(assigned_user_id, 10)); }
 
   const [countRow] = await query(`SELECT COUNT(*) AS total FROM activities a WHERE ${where}`, params);
   const activities = await query(
@@ -146,11 +146,11 @@ const updateActivity = async (id, body, updatorId) => {
   return transaction(async (conn) => {
     const setClauses = fields.map((f) => `${f} = ?`).join(', ');
     const values = fields.map((f) => body[f] === undefined ? null : body[f]);
-    await conn.execute(`UPDATE activities SET ${setClauses} WHERE activity_id = ?`, [...values, id]);
+    await conn.query(`UPDATE activities SET ${setClauses} WHERE activity_id = ?`, [...values, id]);
 
     // Track status change in history
     if (body.status && body.status !== current.status) {
-      await conn.execute(
+      await conn.query(
         'INSERT INTO activity_status_history (activity_id, old_status, new_status, changed_by) VALUES (?,?,?,?)',
         [id, current.status, body.status, updatorId]
       );

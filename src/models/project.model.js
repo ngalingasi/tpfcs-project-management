@@ -31,7 +31,7 @@ const createProject = async (body, creatorId) => {
       implementers           = [],
     } = body;
 
-    const [result] = await conn.execute(
+    const [result] = await conn.query(
       `INSERT INTO projects (name, programme_name, project_nature, sector_id, start_date, end_date,
         fund_structure, funding, estimated_cost, project_life_span, project_background,
         cost_center, project_reference, relevancy_fypds, implementation_modality,
@@ -46,7 +46,7 @@ const createProject = async (body, creatorId) => {
 
     // Insert regions
     for (const regionId of regions) {
-      await conn.execute(
+      await conn.query(
         'INSERT INTO project_regions (project_id, region_id, created_by) VALUES (?,?,?)',
         [projectId, regionId, creatorId]
       );
@@ -54,7 +54,7 @@ const createProject = async (body, creatorId) => {
 
     // Insert implementers
     for (const impl of implementers) {
-      await conn.execute(
+      await conn.query(
         `INSERT INTO project_implementers (project_id, implementer_id, vote_name, vote_code, sub_vote_code, sub_vote_name, cost_center, involvement, created_by)
          VALUES (?,?,?,?,?,?,?,?,?)`,
         [projectId, impl.implementer_id, impl.vote_name ?? null, impl.vote_code ?? null, impl.sub_vote_code ?? null, impl.sub_vote_name ?? null, impl.cost_center ?? null, impl.involvement ?? null, creatorId]
@@ -74,7 +74,7 @@ const getProjects = async ({ page, limit, sector_id, search }) => {
   let where = '1=1';
   const params = [];
 
-  if (sector_id) { where += ' AND p.sector_id = ?'; params.push(sector_id); }
+  if (sector_id) { where += ' AND p.sector_id = ?'; params.push(parseInt(sector_id, 10)); }
   if (search) {
     where += ' AND (p.name LIKE ? OR p.programme_name LIKE ?)';
     const s = `%${search}%`;
@@ -100,7 +100,7 @@ const getProjects = async ({ page, limit, sector_id, search }) => {
  */
 const getProjectById = async (id, conn = null) => {
   const execute = conn
-    ? (sql, params) => conn.execute(sql, params).then(([rows]) => rows)
+    ? (sql, params) => conn.query(sql, params).then(([rows]) => rows)
     : (sql, params) => query(sql, params);
 
   const rows = await execute(

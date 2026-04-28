@@ -11,7 +11,7 @@ const ApiError = require('../utils/ApiError');
  */
 const getProjectBudgetStatus = async (projectId, conn = null) => {
   const exec = conn
-    ? (sql, p) => conn.execute(sql, p).then(([r]) => r)
+    ? (sql, p) => conn.query(sql, p).then(([r]) => r)
     : (sql, p) => query(sql, p);
 
   const [project] = await exec(
@@ -40,7 +40,7 @@ const getProjectBudgetStatus = async (projectId, conn = null) => {
  */
 const getTargetBudgetStatus = async (targetId, conn = null) => {
   const exec = conn
-    ? (sql, p) => conn.execute(sql, p).then(([r]) => r)
+    ? (sql, p) => conn.query(sql, p).then(([r]) => r)
     : (sql, p) => query(sql, p);
 
   const [target] = await exec(
@@ -74,7 +74,7 @@ const getTargetBudgetStatus = async (targetId, conn = null) => {
  */
 const allocateTargetBudget = async (targetId, amount, updatorId) => {
   return transaction(async (conn) => {
-    const exec = (sql, p) => conn.execute(sql, p).then(([r]) => r);
+    const exec = (sql, p) => conn.query(sql, p).then(([r]) => r);
 
     const [target] = await exec(
       `SELECT t.*, o.project_id
@@ -143,7 +143,7 @@ const allocateTargetBudget = async (targetId, amount, updatorId) => {
  * Must be called inside the same transaction as the INSERT.
  */
 const validateActivityBudget = async (targetId, amount, conn) => {
-  const exec = (sql, p) => conn.execute(sql, p).then(([r]) => r);
+  const exec = (sql, p) => conn.query(sql, p).then(([r]) => r);
 
   const [target] = await exec(
     'SELECT allocated_budget FROM targets WHERE target_id = ?',
@@ -182,7 +182,7 @@ const validateActivityBudget = async (targetId, amount, conn) => {
  */
 const syncTargetSpent = async (targetId, conn = null) => {
   const exec = conn
-    ? (sql, p) => conn.execute(sql, p)
+    ? (sql, p) => conn.query(sql, p)
     : (sql, p) => query(sql, p);
 
   await exec(
@@ -255,7 +255,7 @@ const requestBudgetRevision = async (activityId, requestedAmount, reason, reques
  */
 const approveRevision = async (revisionId, reviewerId, reviewNotes = null) => {
   return transaction(async (conn) => {
-    const exec = (sql, p) => conn.execute(sql, p).then(([r]) => r);
+    const exec = (sql, p) => conn.query(sql, p).then(([r]) => r);
 
     const [revision] = await exec(
       `SELECT br.*, a.target_id, a.budgeted_amount, a.revised_amount
@@ -312,7 +312,7 @@ const approveRevision = async (revisionId, reviewerId, reviewNotes = null) => {
     );
 
     // Sync target spent tracker
-    await conn.execute(
+    await conn.query(
       `UPDATE targets
        SET spent_amount = (
          SELECT COALESCE(SUM(COALESCE(revised_amount, budgeted_amount)), 0)

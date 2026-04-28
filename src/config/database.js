@@ -4,31 +4,25 @@ const logger = require('./logger');
 
 let pool;
 
-/**
- * Create and return the MySQL connection pool (singleton)
- */
 const getPool = () => {
   if (!pool) {
     pool = mysql.createPool({
-      host: config.db.host,
-      port: config.db.port,
-      user: config.db.user,
-      password: config.db.password,
-      database: config.db.database,
+      host:             config.db.host,
+      port:             config.db.port,
+      user:             config.db.user,
+      password:         config.db.password,
+      database:         config.db.database,
       waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-      timezone: '+00:00',
-      charset: 'utf8mb4',
+      connectionLimit:  10,
+      queueLimit:       0,
+      timezone:         '+00:00',
+      charset:          'utf8mb4',
     });
     logger.info('MySQL connection pool created');
   }
   return pool;
 };
 
-/**
- * Test the database connection
- */
 const testConnection = async () => {
   const conn = await getPool().getConnection();
   logger.info('Connected to MySQL database');
@@ -36,20 +30,35 @@ const testConnection = async () => {
 };
 
 /**
- * Execute a query using the pool
- * @param {string} sql
- * @param {Array} params
+ * Sanitize params — mysql2 rejects undefined and NaN
+ */
+const sanitize = (params) =>
+  params.map((p) => {
+    if (p === undefined) return null;
+    if (typeof p === 'number' && isNaN(p)) return null;
+    return p;
+  });
+
+/**
+ * Execute a query using pool.query() (non-prepared statement).
+ *
+ * WHY pool.query() instead of pool.execute():
+ *   pool.execute() uses prepared statements which reject LIMIT/OFFSET
+ *   placeholders (?) on some MySQL/MariaDB versions with the error
+ *   "Incorrect arguments to mysqld_stmt_execute".
+ *   pool.query() sends the full interpolated SQL — safe for all versions.
+ *
+ * All user-supplied values are still passed as parameterised placeholders
+ * so there is no SQL injection risk.
  */
 const query = async (sql, params = []) => {
-  // MySQL2 rejects undefined — coerce to null globally as a safety net
-  const safeParams = params.map((p) => (p === undefined ? null : p));
-  const [rows] = await getPool().execute(sql, safeParams);
+  const [rows] = await getPool().query(sql, sanitize(params));
   return rows;
 };
 
 /**
- * Execute within a transaction
- * @param {Function} fn - async function receiving a connection
+ * Execute within a transaction.
+ * Uses conn.query() for the same reason as above.
  */
 const transaction = async (fn) => {
   const conn = await getPool().getConnection();
@@ -66,4 +75,13 @@ const transaction = async (fn) => {
   }
 };
 
-module.exports = { getPool, testConnection, query, transaction };
+/**
+ * Helper to run a query on a transaction connection —
+ * mirrors the pool query() API so models can use either interchangeably.
+ */
+const connQuery = async (conn, sql, params = []) => {
+  const [rows] = await conn.query(sql, sanitize(params));
+  return rows;
+};
+
+module.exports = { getPool, testConnection, query, transaction, connQuery };
