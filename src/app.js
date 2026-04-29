@@ -27,9 +27,9 @@ if (config.env !== 'test') {
 // Security headers
 app.use(helmet({
   contentSecurityPolicy: true,
-  crossOriginEmbedderPolicy: true,
+  crossOriginEmbedderPolicy: false, // Disabled — would block cross-origin API clients
   crossOriginOpenerPolicy: true,
-  crossOriginResourcePolicy: { policy: 'same-site' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // API must allow cross-origin requests
   dnsPrefetchControl: { allow: false },
   frameguard: { action: 'DENY' },         // Prevent clickjacking
   hidePoweredBy: true,                    // Remove X-Powered-By: Express
