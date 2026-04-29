@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router';
+import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../../store/authStore';
 
 interface Props {
@@ -7,7 +7,9 @@ interface Props {
 
 export default function ProtectedRoute({ allowedRoles }: Props) {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
 
+  // Show spinner while rehydrating auth from localStorage
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -19,8 +21,12 @@ export default function ProtectedRoute({ allowedRoles }: Props) {
     );
   }
 
-  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+  // Not logged in → redirect to signin, preserve intended destination
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" state={{ from: location }} replace />;
+  }
 
+  // Role check
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
