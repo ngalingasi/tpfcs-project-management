@@ -14,9 +14,10 @@ const config = require('../config/config');
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 
 const getExpiresAt = (minutes = 10) => {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() + minutes);
-  return d.toISOString().slice(0, 19).replace('T', ' ');
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + minutes);
+    d.setHours(d.getHours() + 3); // ← add EAT offset (UTC+3)
+    return d.toISOString().slice(0, 19).replace('T', ' ');
 };
 
 const maskEmail = (email) =>
