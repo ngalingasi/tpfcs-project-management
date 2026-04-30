@@ -1,170 +1,109 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import {
-  GridIcon, UserCircleIcon, TableIcon, ListIcon,
-  ChevronDownIcon, HorizontaLDots,
-} from "../icons";
 import { useSidebar } from "../context/SidebarContext";
-import SidebarWidget from "./SidebarWidget";
 
-type NavItem = {
-  name: string;
-  icon: React.ReactNode;
-  path?: string;
-  subItems?: { name: string; path: string }[];
+const Icon = {
+  Dashboard: () => <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+  Projects:  () => <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>,
+  Activities:() => <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>,
+  Budget:    () => <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+  Users:     () => <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+  Lookups:   () => <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>,
+  Profile:   () => <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
+  Chevron:   ({ open }: { open: boolean }) => <svg className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>,
 };
 
-const navItems: NavItem[] = [
-  {
-    icon: <GridIcon />,
-    name: "Dashboard",
-    path: "/",
-  },
-  {
-    icon: <TableIcon />,
-    name: "Projects",
-    subItems: [
-      { name: "All Projects",   path: "/projects" },
-      { name: "New Project",    path: "/projects/new" },
-    ],
-  },
-  {
-    icon: <ListIcon />,
-    name: "Activities",
-    subItems: [
-      { name: "All Activities", path: "/activities" },
-      { name: "New Activity",   path: "/activities/new" },
-    ],
-  },
-  {
-    icon: <ChevronDownIcon />,
-    name: "Budget",
-    subItems: [
-      { name: "Revisions",      path: "/budget/revisions" },
-    ],
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Users",
-    subItems: [
-      { name: "All Users",      path: "/users" },
-    ],
-  },
-  {
-    icon: <HorizontaLDots />,
-    name: "Lookups",
-    subItems: [
-      { name: "Sectors",        path: "/lookups/sectors" },
-      { name: "Regions",        path: "/lookups/regions" },
-      { name: "Implementers",   path: "/lookups/implementers" },
-    ],
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Profile",
-    path: "/profile",
-  },
+type SubItem = { name: string; path: string };
+type NavItem = { name: string; icon: React.ReactNode; path?: string; subItems?: SubItem[] };
+
+const NAV: NavItem[] = [
+  { name: "Dashboard",  icon: <Icon.Dashboard />,  path: "/" },
+  { name: "Projects",   icon: <Icon.Projects />,   subItems: [{ name: "All Projects", path: "/projects" }, { name: "New Project", path: "/projects/new" }] },
+  { name: "Activities", icon: <Icon.Activities />, path: "/activities" },
+  { name: "Budget",     icon: <Icon.Budget />,     subItems: [{ name: "Revisions", path: "/budget/revisions" }] },
+  { name: "Users",      icon: <Icon.Users />,      path: "/users" },
+  { name: "Lookups",    icon: <Icon.Lookups />,    path: "/lookups" },
+  { name: "Profile",    icon: <Icon.Profile />,    path: "/profile" },
 ];
 
 export default function AppSidebar() {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
   const [openItems, setOpenItems] = useState<string[]>([]);
-  const sidebarRef = useRef<HTMLDivElement>(null);
 
-  const isActive = (path?: string) => path && location.pathname === path;
-  const isGroupActive = (item: NavItem) =>
-    item.subItems?.some((s) => location.pathname.startsWith(s.path));
-
-  const toggle = (name: string) => {
-    setOpenItems((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
-    );
-  };
-
-  const isOpen = (name: string) => openItems.includes(name);
+  const show         = isExpanded || isHovered || isMobileOpen;
+  const isActive     = (path?: string) => !!path && location.pathname === path;
+  const isSubActive  = (s: SubItem)    => location.pathname === s.path || location.pathname.startsWith(s.path + "/");
+  const isGroupActive= (item: NavItem) => item.subItems?.some(isSubActive) ?? false;
+  const toggle       = (name: string)  =>
+    setOpenItems(p => p.includes(name) ? p.filter(n => n !== name) : [...p, name]);
 
   useEffect(() => {
-    navItems.forEach((item) => {
-      if (item.subItems && isGroupActive(item) && !openItems.includes(item.name)) {
-        setOpenItems((prev) => [...prev, item.name]);
-      }
+    NAV.forEach(item => {
+      if (item.subItems && isGroupActive(item) && !openItems.includes(item.name))
+        setOpenItems(p => [...p, item.name]);
     });
   }, [location.pathname]);
 
-  const showText = isExpanded || isHovered || isMobileOpen;
+  const linkCls = (active: boolean) =>
+    `flex items-center rounded-lg transition-colors duration-150 cursor-pointer w-full
+     ${show ? "gap-3 px-3 py-2" : "justify-center px-0 py-2.5"}
+     ${active
+       ? "bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
+       : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-800 dark:hover:text-white"}`;
 
   return (
     <aside
-      ref={sidebarRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`fixed top-0 left-0 h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-50 transition-all duration-300 ${
-        isMobileOpen ? "translate-x-0" : "-translate-x-full xl:translate-x-0"
-      } ${showText ? "w-64" : "w-[72px]"}`}
+      className={`fixed top-0 left-0 h-screen z-50 flex flex-col
+        bg-white dark:bg-gray-900
+        border-r border-gray-200 dark:border-gray-800
+        transition-all duration-300 ease-in-out
+        ${isMobileOpen ? "translate-x-0" : "-translate-x-full xl:translate-x-0"}
+        ${show ? "w-[240px]" : "w-[68px]"}`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-brand-500 flex items-center justify-center">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-              stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        {showText && (
-          <div>
-            <p className="text-sm font-bold text-gray-800 dark:text-white">TPFCS</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Project Mgmt</p>
+      <div className={`flex items-center flex-shrink-0 border-b border-gray-100 dark:border-gray-800
+        ${show ? "gap-2.5 px-4 h-16" : "justify-center px-0 h-16"}`}>
+        <img src="/logo-64.png" alt="TPFCS" className="w-9 h-9 object-contain flex-shrink-0" />
+        {show && (
+          <div className="min-w-0">
+            <p className="text-[11.5px] font-bold text-gray-800 dark:text-white leading-tight">Tanzania Police Force</p>
+            <p className="text-[10.5px] text-gray-500 dark:text-gray-400 leading-tight">Corporation Sole</p>
           </div>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="p-3 space-y-1 overflow-y-auto h-[calc(100vh-140px)]">
-        {navItems.map((item) => (
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
+        {NAV.map(item => (
           <div key={item.name}>
             {item.path ? (
-              <Link
-                to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  isActive(item.path)
-                    ? "bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
-                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-white"
-                }`}
-              >
-                <span className="flex-shrink-0 w-5 h-5">{item.icon}</span>
-                {showText && <span className="text-sm font-medium">{item.name}</span>}
+              <Link to={item.path} title={!show ? item.name : undefined} className={linkCls(isActive(item.path))}>
+                {item.icon}
+                {show && <span className="text-[13px] font-medium">{item.name}</span>}
               </Link>
             ) : (
               <>
-                <button
-                  onClick={() => toggle(item.name)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    isGroupActive(item)
-                      ? "bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  }`}
-                >
-                  <span className="flex-shrink-0 w-5 h-5">{item.icon}</span>
-                  {showText && (
+                <button onClick={() => toggle(item.name)} title={!show ? item.name : undefined} className={linkCls(isGroupActive(item))}>
+                  {item.icon}
+                  {show && (
                     <>
-                      <span className="text-sm font-medium flex-1 text-left">{item.name}</span>
-                      <ChevronDownIcon className={`w-4 h-4 transition-transform ${isOpen(item.name) ? "rotate-180" : ""}`} />
+                      <span className="text-[13px] font-medium flex-1 text-left">{item.name}</span>
+                      <Icon.Chevron open={openItems.includes(item.name)} />
                     </>
                   )}
                 </button>
-                {isOpen(item.name) && showText && item.subItems && (
-                  <div className="ml-8 mt-1 space-y-1">
-                    {item.subItems.map((sub) => (
-                      <Link
-                        key={sub.path}
-                        to={sub.path}
-                        className={`block px-3 py-2 text-sm rounded-lg transition-colors ${
-                          location.pathname === sub.path
-                            ? "text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10"
-                            : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                        }`}
-                      >
+                {openItems.includes(item.name) && show && item.subItems && (
+                  <div className="mt-0.5 ml-9 space-y-0.5">
+                    {item.subItems.map(sub => (
+                      <Link key={sub.name} to={sub.path}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[12.5px] transition-colors
+                          ${isSubActive(sub)
+                            ? "text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 font-medium"
+                            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/60"}`}>
+                        <span className="w-1 h-1 rounded-full bg-current opacity-50 flex-shrink-0" />
                         {sub.name}
                       </Link>
                     ))}
@@ -176,7 +115,18 @@ export default function AppSidebar() {
         ))}
       </nav>
 
-      <SidebarWidget />
+      {/* Bottom — only when expanded */}
+      {show && (
+        <div className="flex-shrink-0 border-t border-gray-100 dark:border-gray-800 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo-64.png" alt="TPFCS" className="w-7 h-7 object-contain flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">TPFCS</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">Project Management</p>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

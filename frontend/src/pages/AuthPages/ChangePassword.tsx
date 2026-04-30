@@ -88,15 +88,9 @@ export default function ChangePassword() {
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
 
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-500 shadow-lg mb-4">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 15V17M6 21H18C19.1046 21 20 20.1046 20 19V13C20 11.8954 19.1046 11 18 11H6C4.89543 11 4 11.8954 4 13V19C4 20.1046 4.89543 21 6 21ZM16 11V7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7V11H16Z"
-                  stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <h1 className="text-xl font-bold text-gray-800 dark:text-white">Change Your Password</h1>
+            <img src="/logo.png" alt="TPFCS" className="w-24 h-24 object-contain mx-auto mb-4 drop-shadow-md" />
+            <h1 className="text-lg font-bold text-gray-800 dark:text-white">Tanzania Police Force</h1>
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Corporation Sole</p>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               You must set a new password before continuing
             </p>

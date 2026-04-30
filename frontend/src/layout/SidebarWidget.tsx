@@ -1,24 +1,12 @@
 export default function SidebarWidget() {
   return (
-    <div className="pb-20">
-      <div
-        className={`
-        mx-auto  w-full max-w-60 rounded-2xl bg-gray-50 px-4 py-5 text-center dark:bg-white/[0.03]`}
-      >
-        <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">
-          #1 Tailwind CSS Dashboard
-        </h3>
-        <p className="mb-4 text-gray-500 text-theme-sm dark:text-gray-400">
-          Leading Tailwind CSS Admin Template with 400+ UI Component and Pages.
-        </p>
-        <a
-          href="https://tailadmin.com/pricing"
-          target="_blank"
-          rel="nofollow"
-          className="flex items-center justify-center p-3 font-medium text-white rounded-lg bg-brand-500 text-theme-sm hover:bg-brand-600"
-        >
-          Purchase Plan
-        </a>
+    <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 dark:border-gray-800">
+      <div className="flex items-center gap-3">
+        <img src="/logo-64.png" alt="TPFCS" className="w-8 h-8 object-contain flex-shrink-0" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">TPFCS</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 truncate">Project Management</p>
+        </div>
       </div>
     </div>
   );

@@ -11,26 +11,26 @@ const LayoutContent: React.FC = () => {
     <div className="min-h-screen xl:flex">
       <AppSidebar />
       <Backdrop />
+      {/* Main content — offset matches sidebar width exactly */}
       <div
-        className={`flex-1 transition-all duration-300 ease-in-out  ${
-          isExpanded || isHovered ? "xl:ml-[290px]" : "xl:ml-[90px]"
+        className={`flex-1 transition-all duration-300 ease-in-out ${
+          isExpanded || isHovered ? "xl:ml-[260px]" : "xl:ml-[68px]"
         } ${isMobileOpen ? "ml-0" : ""}`}
       >
         <AppHeader />
-        <div className="p-4 pb-20 mx-auto max-w-(--breakpoint-2xl) md:p-6 md:pb-24">
+        {/* Centered, max-width constrained content area */}
+        <main className="px-4 py-5 md:px-6 md:py-6 pb-20 w-full max-w-screen-xl mx-auto">
           <Outlet />
-        </div>
+        </main>
       </div>
     </div>
   );
 };
 
-const AppLayout: React.FC = () => {
-  return (
-    <SidebarProvider>
-      <LayoutContent />
-    </SidebarProvider>
-  );
-};
+const AppLayout: React.FC = () => (
+  <SidebarProvider>
+    <LayoutContent />
+  </SidebarProvider>
+);
 
 export default AppLayout;

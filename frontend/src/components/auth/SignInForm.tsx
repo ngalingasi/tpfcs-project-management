@@ -128,15 +128,26 @@ export default function SignInForm() {
     <div className="flex flex-col flex-1">
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto px-4">
 
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 mb-3 rounded-2xl bg-brand-500 shadow-lg">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+        {/* Logo header:
+             - credentials step → hidden on lg (right panel has big logo), shown on mobile
+             - channel & otp steps → always shown with logo (no right panel context) */}
+        {step === 'credentials' && (
+          <div className="mb-8 text-center lg:hidden">
+            <img src="/logo.png" alt="TPFCS" className="w-20 h-20 object-contain mx-auto mb-3" />
+            <h1 className="text-lg font-bold text-gray-800 dark:text-white">Tanzania Police Force</h1>
+            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Corporation Sole</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Project Management System</p>
           </div>
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">TPFCS</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Project Management System</p>
-        </div>
+        )}
+
+        {(step === 'channel' || step === 'otp') && (
+          <div className="mb-8 text-center">
+            <img src="/logo.png" alt="TPFCS" className="w-24 h-24 object-contain mx-auto mb-3 drop-shadow-md" />
+            <h1 className="text-base font-bold text-gray-800 dark:text-white">Tanzania Police Force</h1>
+            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Corporation Sole</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Project Management System</p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400">
