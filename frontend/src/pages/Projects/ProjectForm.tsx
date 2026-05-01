@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router';
 import { projectsApi, lookupsApi, usersApi } from '../../api';
 import type { Sector, Region, Implementer, UserRecord } from '../../types';
-import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
+import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
 
 export default function ProjectForm() {
   const { id }    = useParams<{ id: string }>();
@@ -133,8 +133,8 @@ export default function ProjectForm() {
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Timeline & Budget</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <FormInput label="Start Date" type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
-            <FormInput label="End Date" type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+            <FormDateInput label="Start Date" id="proj-start-date" value={form.start_date} onChange={v => set('start_date', v)} />
+            <FormDateInput label="End Date" id="proj-end-date" value={form.end_date} onChange={v => set('end_date', v)} />
             <FormInput label="Life Span (years)" type="number" value={form.project_life_span} onChange={e => set('project_life_span', e.target.value)} placeholder="3" />
           </div>
           <div className="grid grid-cols-2 gap-4">

@@ -8,25 +8,28 @@ const userController = require('../../controllers/user.controller');
 const createUserSchema = {
   body: Joi.object().keys({
     full_name: Joi.string().required(),
-    username: Joi.string().alphanum().min(3).required(),
-    email: Joi.string().email().optional(),
-    mobile: Joi.string().optional(),
-    gender: Joi.string().valid('male', 'female').optional(),
-    role: Joi.string().valid('user', 'manager', 'admin').optional(),
-    status: Joi.string().valid('active', 'inactive').optional(),
-    password: Joi.string().min(8).optional(),
+    username:  Joi.string().alphanum().min(3).required(),
+    email:     Joi.string().email().optional().allow('', null),
+    mobile:    Joi.string().optional().allow('', null),
+    gender:    Joi.string().valid('male', 'female').optional(),
+    role:      Joi.string().valid('user', 'manager', 'admin').optional(),
+    status:    Joi.string().valid('active', 'inactive').optional(),
+    password:  Joi.string().min(8).optional(),
   }),
 };
 
 const updateUserSchema = {
-  params: Joi.object().keys({ userId: Joi.number().integer().required() }),
+  params: Joi.object().keys({
+    userId: Joi.number().integer().required(),
+  }),
   body: Joi.object().keys({
-    full_name: Joi.string().optional(),
-    email: Joi.string().email().optional(),
-    mobile: Joi.string().optional(),
-    gender: Joi.string().valid('male', 'female').optional(),
-    role: Joi.string().valid('user', 'manager', 'admin').optional(),
-    status: Joi.string().valid('active', 'inactive').optional(),
+    full_name:            Joi.string().optional(),
+    email:                Joi.string().email().optional().allow('', null),
+    mobile:               Joi.string().optional().allow('', null),
+    gender:               Joi.string().valid('male', 'female').optional(),
+    role:                 Joi.string().valid('user', 'manager', 'admin').optional(),
+    status:               Joi.string().valid('active', 'inactive').optional(),
+    must_change_password: Joi.number().valid(0, 1).optional(),
   }).min(1),
 };
 

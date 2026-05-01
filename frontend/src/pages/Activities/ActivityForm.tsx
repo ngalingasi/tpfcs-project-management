@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router';
 import { activitiesApi, targetsApi, objectivesApi, projectsApi, lookupsApi, usersApi } from '../../api';
-import type { Target, Region, UserRecord, Project } from '../../types';
-import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
+import type { Target, Region, UserRecord } from '../../types';
+import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
 
 export default function ActivityForm() {
   const { id }             = useParams<{ id: string }>();
@@ -109,7 +109,9 @@ export default function ActivityForm() {
         longitude:        form.longitude        ? Number(form.longitude)        : null,
       };
       if (isEdit) {
-        await activitiesApi.update(Number(id), payload);
+        // target_id and budgeted_amount cannot be changed after creation — strip them
+        const { target_id: _t, budgeted_amount: _b, global_id, ...updatePayload } = payload as any;
+        await activitiesApi.update(Number(id), { ...updatePayload, global_id });
         navigate(`/activities/${id}`);
       } else {
         const res = await activitiesApi.create(payload);
@@ -148,8 +150,31 @@ export default function ActivityForm() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Activity Details</h2>
           <FormSelect label="Target" required value={form.target_id} onChange={e => set('target_id', e.target.value)}>
             <option value="">Select target...</option>
-            {targets.map(t => <option key={t.target_id} value={t.target_id}>{t.name}</option>)}
+            {targets.map(t => (
+              <option key={t.target_id} value={t.target_id}>
+                {t.name}{t.allocated_budget > 0
+                  ? ` — Budget: TZS ${Number(t.allocated_budget).toLocaleString()}`
+                  : ' — ⚠ No budget allocated'}
+              </option>
+            ))}
           </FormSelect>
+          {form.target_id && (() => {
+            const t = targets.find(t => t.target_id === Number(form.target_id));
+            if (t && t.allocated_budget <= 0) return (
+              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-sm text-orange-700 dark:text-orange-400">
+                ⚠ This target has no budget allocated. Go to the project's Targets tab and allocate budget before creating activities.
+              </div>
+            );
+            if (t && t.allocated_budget > 0) {
+              const committed = t.allocated_budget - (t.spent_amount ?? 0);
+              return (
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-sm text-green-700 dark:text-green-400">
+                  ✓ Available budget: TZS {Number(t.allocated_budget).toLocaleString()}
+                </div>
+              );
+            }
+            return null;
+          })()}
           <FormInput label="Activity Name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Construct borehole at Mwanakwerekwe" />
           <FormTextArea label="Description" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe this activity..." />
         </div>
@@ -184,8 +209,8 @@ export default function ActivityForm() {
               <option value="">None</option>
               {users.map(u => <option key={u.user_id} value={u.user_id}>{u.full_name}</option>)}
             </FormSelect>
-            <FormInput label="Start Date" type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
-            <FormInput label="End Date" type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+            <FormDateInput label="Start Date" id="act-start-date" value={form.start_date} onChange={v => set('start_date', v)} />
+            <FormDateInput label="End Date" id="act-end-date" value={form.end_date} onChange={v => set('end_date', v)} />
           </div>
         </div>
 

@@ -213,7 +213,7 @@ export default function ActivityDetail() {
             <p className="text-center py-12 text-gray-400 text-sm">No status changes yet</p>
           ) : (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {history.map((h: any) => (
+              {history.map((h) => (
                 <div key={h.id} className="flex items-center gap-4 px-5 py-4">
                   <div className="flex items-center gap-2 flex-1">
                     <StatusBadge status={h.old_status} />

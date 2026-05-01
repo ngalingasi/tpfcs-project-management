@@ -5,7 +5,7 @@ import type { Project, Objective, Target, Activity, ProjectBudgetSummary, Region
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import Modal from '../../components/tpfcs/Modal';
-import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
+import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
 
 type Tab = 'details' | 'objectives' | 'targets' | 'activities';
 
@@ -175,6 +175,56 @@ function ActivityForm({ targets, regions, onSaved, onClose }: { targets: Target[
   );
 }
 
+// ── Allocate Budget Form ─────────────────────────────────────────────────────────
+function AllocateBudgetForm({ target, projectBudget, onSaved, onClose }: {
+  target: Target;
+  projectBudget: number;
+  onSaved: () => void;
+  onClose: () => void;
+}) {
+  const [amount,  setAmount]  = useState(target.allocated_budget?.toString() ?? '');
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amount || Number(amount) <= 0) { setError('Amount must be greater than 0'); return; }
+    setSaving(true); setError('');
+    try {
+      await budgetApi.allocateTarget(target.target_id, Number(amount));
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Failed to allocate budget');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <form onSubmit={save} className="space-y-4">
+      {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg">{error}</p>}
+      <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-sm text-blue-700 dark:text-blue-400">
+        <p className="font-medium">{target.name}</p>
+        <p className="text-xs mt-0.5">Project total budget: TZS {Number(projectBudget).toLocaleString()}</p>
+        {target.allocated_budget > 0 && (
+          <p className="text-xs mt-0.5">Currently allocated: TZS {Number(target.allocated_budget).toLocaleString()}</p>
+        )}
+      </div>
+      <FormInput
+        label="Allocated Budget (TZS)"
+        required
+        type="number"
+        value={amount}
+        onChange={e => setAmount(e.target.value)}
+        placeholder="e.g. 2000000"
+      />
+      <div className="flex justify-end gap-3 pt-2">
+        <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-400">Cancel</button>
+        <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50">{saving ? 'Allocating...' : 'Allocate Budget'}</button>
+      </div>
+    </form>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -188,7 +238,8 @@ export default function ProjectDetail() {
   const [regions,      setRegions]      = useState<Region[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [tab,          setTab]          = useState<Tab>('details');
-  const [modal,        setModal]        = useState<'objective' | 'target' | 'activity' | null>(null);
+  const [modal,        setModal]        = useState<'objective' | 'target' | 'activity' | 'allocate' | null>(null);
+  const [allocateTarget, setAllocateTarget] = useState<Target | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -428,7 +479,20 @@ export default function ProjectDetail() {
                 <div className="grid grid-cols-3 gap-3 text-xs mb-3">
                   <div><p className="text-gray-400">Target</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.target_value} {t.unit}</p></div>
                   <div><p className="text-gray-400">Current</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.current_value} {t.unit}</p></div>
-                  <div><p className="text-gray-400">Budget</p><p className="font-medium text-gray-700 dark:text-gray-300">TZS {Number(t.allocated_budget).toLocaleString()}</p></div>
+                  <div>
+                    <p className="text-gray-400">Budget</p>
+                    <div className="flex items-center gap-2">
+                      <p className={`font-medium ${t.allocated_budget > 0 ? 'text-gray-700 dark:text-gray-300' : 'text-orange-500 dark:text-orange-400'}`}>
+                        {t.allocated_budget > 0 ? `TZS ${Number(t.allocated_budget).toLocaleString()}` : '⚠ Not allocated'}
+                      </p>
+                      <button
+                        onClick={() => { setAllocateTarget(t); setModal('allocate'); }}
+                        className="text-brand-500 hover:text-brand-600 underline text-xs flex-shrink-0"
+                      >
+                        {t.allocated_budget > 0 ? 'Change' : 'Allocate'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <BudgetBar value={progress} label="Progress" />
               </div>
@@ -489,6 +553,17 @@ export default function ProjectDetail() {
 
       <Modal isOpen={modal === 'activity'} onClose={() => setModal(null)} title="Add Activity" size="lg">
         <ActivityForm targets={targets} regions={regions} onSaved={loadAll} onClose={() => setModal(null)} />
+      </Modal>
+
+      <Modal isOpen={modal === 'allocate' && !!allocateTarget} onClose={() => setModal(null)} title="Allocate Budget to Target" size="sm">
+        {allocateTarget && (
+          <AllocateBudgetForm
+            target={allocateTarget}
+            projectBudget={project?.estimated_cost ?? 0}
+            onSaved={loadAll}
+            onClose={() => setModal(null)}
+          />
+        )}
       </Modal>
 
     </div>

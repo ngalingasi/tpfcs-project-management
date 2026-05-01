@@ -4,6 +4,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   required?: boolean;
+  className?: string;
 }
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
@@ -27,7 +28,7 @@ export function FormInput({ label, error, required, ...props }: InputProps) {
       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
-      <input className={`${base} ${error ? 'border-red-400' : ''}`} {...props} />
+      <input className={`${base} ${error ? 'border-red-400' : ''} ${props.className ?? ''}`} {...props} />
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   );
@@ -59,6 +60,43 @@ export function FormTextArea({ label, error, required, ...props }: TextAreaProps
         {...props}
       />
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+// ── Date input using flatpickr (template's date picker) ───────────────────────
+import DatePickerBase from '../form/date-picker';
+
+interface DateInputProps {
+  label: string;
+  id: string;
+  required?: boolean;
+  value?: string;
+  onChange?: (date: string) => void;
+  placeholder?: string;
+}
+
+export function FormDateInput({ label, id, required, value, onChange, placeholder }: DateInputProps) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <DatePickerBase
+        id={id}
+        mode="single"
+        placeholder={placeholder ?? 'Select date'}
+        defaultDate={value || undefined}
+        onChange={(dates) => {
+          if (onChange && dates[0]) {
+            const d = dates[0];
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            onChange(`${y}-${m}-${day}`);
+          }
+        }}
+      />
     </div>
   );
 }
