@@ -22,6 +22,16 @@ const employmentSchema = Joi.object({
   domestic_count: Joi.number().integer().min(0).optional().default(0),
 });
 
+const financingSchema = Joi.object({
+  fund_source:        Joi.string().optional().allow('', null),
+  financial_modality: Joi.string().optional().allow('', null),
+  financial_category: Joi.string().optional().allow('', null),
+  financier:          Joi.string().optional().allow('', null),
+  committed_amount:   Joi.number().optional().allow(null),
+  exchange_rate:      Joi.number().optional().allow(null),
+  currency:           Joi.string().max(10).optional().allow('', null),
+});
+
 const regionSchema = Joi.alternatives().try(
   Joi.number().integer(),
   Joi.object({
@@ -75,6 +85,7 @@ const projectSchema = {
     implementers:           Joi.array().items(Joi.object()).optional(),
     coordinators:           Joi.array().items(coordinatorSchema).optional(),
     employment:             Joi.array().items(employmentSchema).optional(),
+    financing:              Joi.array().items(financingSchema).optional(),
   }),
 };
 

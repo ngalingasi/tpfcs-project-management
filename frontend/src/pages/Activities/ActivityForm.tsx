@@ -6,18 +6,30 @@ import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../compon
 import { toast } from '../../components/tpfcs/Toast';
 import BackButton from '../../components/tpfcs/BackButton';
 
+// ── Defined OUTSIDE to prevent remount on keystroke → focus loss ──────────────
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 space-y-4">
+      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 pb-2 border-b border-gray-100 dark:border-gray-800">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function ActivityForm() {
-  const { id }             = useParams<{ id: string }>();
-  const [searchParams]     = useSearchParams();
-  const navigate           = useNavigate();
-  const isEdit             = !!id;
-  const fromProjectId      = searchParams.get('project_id');
-  const mainActivityId     = searchParams.get('main_activity_id');
+  const { id }         = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate       = useNavigate();
+  const isEdit         = !!id;
+
+  const fromProjectId  = searchParams.get('project_id');
+  const fromMainId     = searchParams.get('main_activity_id');
 
   const [form, setForm] = useState({
     target_id:        searchParams.get('target_id') ?? '',
-    main_activity_id: searchParams.get('main_activity_id') ?? '',
-    main_activity_id: searchParams.get('main_activity_id') ?? '',
+    main_activity_id: fromMainId ?? '',
     region_id:        '',
     name:             '',
     description:      '',
@@ -36,20 +48,37 @@ export default function ActivityForm() {
     status:           'pending',
   });
 
-  const [targets,    setTargets]    = useState<Target[]>([]);
-  const [regions,    setRegions]    = useState<Region[]>([]);
-  const [users,      setUsers]      = useState<UserRecord[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [saving,     setSaving]     = useState(false);
-  const [error,      setError]      = useState('');
+  const [targets,          setTargets]          = useState<Target[]>([]);
+  const [parentActivities, setParentActivities] = useState<{activity_id:number; name:string; status:string}[]>([]);
+  const [loadingParents,   setLoadingParents]   = useState(false);
+  const [regions,  setRegions]  = useState<Region[]>([]);
+  const [users,    setUsers]    = useState<UserRecord[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState('');
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  // When target changes, load eligible parent activities for that target
+  // (top-level only — no sub-activities, no cancelled/completed)
+  useEffect(() => {
+    if (!form.target_id) { setParentActivities([]); return; }
+    setLoadingParents(true);
+    activitiesApi.list({ target_id: Number(form.target_id), limit: 200 })
+      .then(res => {
+        const eligible = res.data.results.filter(
+          a => !a.main_activity_id && a.status !== 'cancelled'
+        );
+        setParentActivities(eligible);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingParents(false));
+  }, [form.target_id]);
 
   useEffect(() => {
     const init = async () => {
       setLoading(true);
       try {
-        // Load dropdowns
         const [rRes, uRes] = await Promise.all([
           lookupsApi.regions(),
           usersApi.list({ limit: 200, status: 'active' }),
@@ -57,48 +86,42 @@ export default function ActivityForm() {
         setRegions(rRes.data);
         setUsers(uRes.data.results);
 
-        // Load targets from all projects
+        // Load all targets across all projects
         const pRes = await projectsApi.list({ limit: 100 });
         const allTargets: Target[] = [];
         for (const project of pRes.data.results) {
           const oRes = await objectivesApi.listByProject(project.project_id);
           for (const obj of oRes.data) {
             const tRes = await targetsApi.listByObjective(obj.objective_id);
-            allTargets.push(...tRes.data.map(t => ({ ...t, name: `${project.name} → ${obj.title} → ${t.name}` })));
+            tRes.data.forEach(t => allTargets.push({
+              ...t,
+              name: `${project.name} → ${obj.title} → ${t.name}`,
+            }));
           }
         }
-        // If coming from a specific project, filter targets to that project only
-        const filtered = fromProjectId
-          ? allTargets.filter(t => {
-              // Check if target belongs to the project via its name prefix
-              const proj = pRes.data.results.find(p => p.project_id === Number(fromProjectId));
-              return proj ? t.name.startsWith(proj.name) : true;
-            })
-          : allTargets;
-        setTargets(filtered.length > 0 ? filtered : allTargets);
+        setTargets(allTargets);
 
-        // If editing, load existing activity
         if (isEdit) {
           const aRes = await activitiesApi.get(Number(id));
           const a = aRes.data;
           setForm({
-            target_id:        a.target_id?.toString() ?? '',
-            region_id:        a.region_id?.toString() ?? '',
-            name:             a.name ?? '',
-            description:      a.description ?? '',
-            council:          a.council ?? '',
-            ward:             a.ward ?? '',
-            street:           a.street ?? '',
-            road_name:        a.road_name ?? '',
-            latitude:         a.latitude?.toString() ?? '',
-            longitude:        a.longitude?.toString() ?? '',
-            global_id:        a.global_id ?? '',
-            assigned_user_id: a.assigned_user_id?.toString() ?? '',
-            supervisor_id:    a.supervisor_id?.toString() ?? '',
-            start_date:       a.start_date?.slice(0, 10) ?? '',
-            end_date:         a.end_date?.slice(0, 10) ?? '',
-            budgeted_amount:  a.budgeted_amount?.toString() ?? '',
+            target_id:        a.target_id?.toString()        ?? '',
             main_activity_id: a.main_activity_id?.toString() ?? '',
+            region_id:        a.region_id?.toString()        ?? '',
+            name:             a.name             ?? '',
+            description:      a.description      ?? '',
+            council:          a.council          ?? '',
+            ward:             a.ward             ?? '',
+            street:           a.street           ?? '',
+            road_name:        a.road_name        ?? '',
+            latitude:         a.latitude?.toString()  ?? '',
+            longitude:        a.longitude?.toString() ?? '',
+            global_id:        a.global_id        ?? '',
+            assigned_user_id: a.assigned_user_id?.toString() ?? '',
+            supervisor_id:    a.supervisor_id?.toString()    ?? '',
+            start_date:       a.start_date?.slice(0, 10) ?? '',
+            end_date:         a.end_date?.slice(0, 10)   ?? '',
+            budgeted_amount:  a.budgeted_amount?.toString() ?? '',
             status:           a.status ?? 'pending',
           });
         }
@@ -109,34 +132,45 @@ export default function ActivityForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.target_id) { setError('Activity name and target are required'); return; }
+    if (!form.name.trim())    { setError('Activity name is required'); return; }
+    if (!form.target_id)      { setError('Target is required'); return; }
     if (!isEdit && !form.budgeted_amount) { setError('Budgeted amount is required'); return; }
+
     setSaving(true); setError('');
     try {
-      const payload = {
-        ...form,
-        target_id:        form.target_id        ? Number(form.target_id)        : undefined,
+      const payload: any = {
+        name:             form.name,
+        description:      form.description      || null,
         region_id:        form.region_id        ? Number(form.region_id)        : null,
-        assigned_user_id: form.assigned_user_id ? Number(form.assigned_user_id) : null,
-        supervisor_id:    form.supervisor_id    ? Number(form.supervisor_id)    : null,
-        budgeted_amount:  form.budgeted_amount  ? Number(form.budgeted_amount)  : undefined,
+        council:          form.council          || null,
+        ward:             form.ward             || null,
+        street:           form.street           || null,
+        road_name:        form.road_name        || null,
         latitude:         form.latitude         ? Number(form.latitude)         : null,
         longitude:        form.longitude        ? Number(form.longitude)        : null,
+        global_id:        form.global_id        || null,
+        assigned_user_id: form.assigned_user_id ? Number(form.assigned_user_id) : null,
+        supervisor_id:    form.supervisor_id    ? Number(form.supervisor_id)    : null,
+        start_date:       form.start_date       || null,
+        end_date:         form.end_date         || null,
+        status:           form.status,
+        main_activity_id: form.main_activity_id ? Number(form.main_activity_id) : null,
       };
+
+      if (!isEdit) {
+        payload.target_id       = Number(form.target_id);
+        payload.budgeted_amount = Number(form.budgeted_amount);
+      }
+
       if (isEdit) {
-        // target_id and budgeted_amount cannot be changed after creation — strip them
-        const { target_id: _t, budgeted_amount: _b, global_id, ...updatePayload } = payload as any;
-        await activitiesApi.update(Number(id), { ...updatePayload, global_id });
+        await activitiesApi.update(Number(id), payload);
+        toast.success('Activity updated', 'Changes saved successfully');
         navigate(`/activities/${id}`);
       } else {
         const res = await activitiesApi.create(payload);
-        // Go back to project detail if we came from there
-        toast.success(isEdit ? 'Activity updated' : 'Activity created', isEdit ? 'Changes saved successfully' : res?.data?.name);
-        if (fromProjectId) {
-          navigate(`/projects/${fromProjectId}`);
-        } else {
-          navigate(`/activities/${isEdit ? id : res?.data?.activity_id}`);
-        }
+        toast.success('Activity created', res.data.name);
+        if (fromProjectId) navigate(`/projects/${fromProjectId}`);
+        else navigate(`/activities/${res.data.activity_id}`);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to save activity';
@@ -146,7 +180,7 @@ export default function ActivityForm() {
   };
 
   if (loading) return (
-    <div className="animate-pulse space-y-4 max-w-3xl mx-auto">
+    <div className="animate-pulse max-w-3xl mx-auto space-y-4">
       <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48" />
       <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-xl" />
     </div>
@@ -154,19 +188,14 @@ export default function ActivityForm() {
 
   return (
     <div className="max-w-3xl mx-auto">
+      {/* Breadcrumb + back */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-        {fromProjectId ? (
-          <>
-            <Link to="/projects" className="hover:text-brand-500">Projects</Link>
-            <span>/</span>
-            <Link to={`/projects/${fromProjectId}`} className="hover:text-brand-500">Project</Link>
-          </>
-        ) : (
-          <Link to="/activities" className="hover:text-brand-500">Activities</Link>
-        )}
-        <span>/</span>
-        <span className="text-gray-700 dark:text-gray-300">{isEdit ? 'Edit Activity' : 'New Activity'}</span>
+          {fromProjectId
+            ? <><Link to="/projects" className="hover:text-brand-500">Projects</Link><span>/</span><Link to={`/projects/${fromProjectId}`} className="hover:text-brand-500">Project</Link></>
+            : <Link to="/activities" className="hover:text-brand-500">Activities</Link>}
+          <span>/</span>
+          <span className="text-gray-700 dark:text-gray-300">{isEdit ? 'Edit Activity' : 'New Activity'}</span>
         </div>
         <BackButton />
       </div>
@@ -175,71 +204,77 @@ export default function ActivityForm() {
         {isEdit ? 'Edit Activity' : 'Create New Activity'}
       </h1>
 
-      {mainActivityId && (
+      {/* Sub-activity banner */}
+      {form.main_activity_id && (
         <div className="mb-5 p-3 rounded-lg bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-sm text-purple-700 dark:text-purple-400">
-          <span className="font-medium">Creating Sub-Activity</span> — this will be linked to the parent activity.
+          <span className="font-medium">Creating Sub-Activity</span> — linked to parent Activity #{form.main_activity_id}
         </div>
       )}
-      {error && <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-sm border border-red-200 dark:border-red-500/20">{error}</div>}
+
+      {error && (
+        <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-sm border border-red-200 dark:border-red-500/20">{error}</div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
 
-        {/* Core */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Activity Details</h2>
+        <Section title="Activity Details">
           <FormSelect label="Target" required value={form.target_id} onChange={e => set('target_id', e.target.value)}>
             <option value="">Select target...</option>
             {targets.map(t => (
               <option key={t.target_id} value={t.target_id}>
-                {t.name}{t.allocated_budget > 0
-                  ? ` — Budget: TZS ${Number(t.allocated_budget).toLocaleString()}`
-                  : ' — ⚠ No budget allocated'}
+                {t.name}{t.allocated_budget > 0 ? ` (TZS ${Number(t.allocated_budget).toLocaleString()})` : ' ⚠ no budget'}
               </option>
             ))}
           </FormSelect>
+
           {form.target_id && (() => {
             const t = targets.find(t => t.target_id === Number(form.target_id));
-            if (t && t.allocated_budget <= 0) return (
-              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-sm text-orange-700 dark:text-orange-400">
-                ⚠ This target has no budget allocated. Go to the project's Targets tab and allocate budget before creating activities.
-              </div>
-            );
-            if (t && t.allocated_budget > 0) {
-              const committed = t.allocated_budget - (t.spent_amount ?? 0);
-              return (
-                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-sm text-green-700 dark:text-green-400">
-                  ✓ Available budget: TZS {Number(t.allocated_budget).toLocaleString()}
-                </div>
-              );
-            }
-            return null;
-          })()}
-          {/* Main Activity (parent) selector */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Parent Activity (optional — leave blank for top-level activity)
-            </label>
-            <input
-              type="text"
-              value={form.main_activity_id}
-              onChange={e => setForm(f => ({ ...f, main_activity_id: e.target.value }))}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-brand-400"
-              placeholder="Enter parent Activity ID to create a sub-activity"
-            />
-            {form.main_activity_id && (
-              <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                ↳ This will be created as a sub-activity under Activity #{form.main_activity_id}
+            if (!t) return null;
+            if (t.allocated_budget <= 0) return (
+              <p className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 p-2 rounded-lg">
+                ⚠ This target has no budget allocated. Go to the project Targets tab and allocate budget first.
               </p>
-            )}
-          </div>
+            );
+            return (
+              <p className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10 p-2 rounded-lg">
+                ✓ Available budget: TZS {Number(t.allocated_budget).toLocaleString()}
+              </p>
+            );
+          })()}
+
+          {/* Parent Activity dropdown — only shown when target is selected */}
+          {form.target_id && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                Parent Activity
+                <span className="font-normal text-gray-400 ml-1">(optional — select to create a sub-activity)</span>
+              </label>
+              <select
+                value={form.main_activity_id}
+                onChange={e => set('main_activity_id', e.target.value)}
+                disabled={loadingParents}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-brand-400 disabled:opacity-50"
+              >
+                <option value="">— None (top-level activity) —</option>
+                {loadingParents
+                  ? <option disabled>Loading activities...</option>
+                  : parentActivities.length === 0
+                    ? <option disabled>No activities available for this target</option>
+                    : parentActivities.map(a => (
+                        <option key={a.activity_id} value={a.activity_id}>
+                          #{a.activity_id} — {a.name}
+                        </option>
+                      ))
+                }
+              </select>
+            </div>
+          )}
 
           <FormInput label="Activity Name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Construct borehole at Mwanakwerekwe" />
           <FormTextArea label="Description" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe this activity..." />
-        </div>
+        </Section>
 
-        {/* Location */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Location</h2>
+        <Section title="Location">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormSelect label="Region" value={form.region_id} onChange={e => set('region_id', e.target.value)}>
               <option value="">Select region...</option>
@@ -253,11 +288,9 @@ export default function ActivityForm() {
             <FormInput label="Latitude" type="number" step="any" value={form.latitude} onChange={e => set('latitude', e.target.value)} placeholder="-6.1659" />
             <FormInput label="Longitude" type="number" step="any" value={form.longitude} onChange={e => set('longitude', e.target.value)} placeholder="39.2026" />
           </div>
-        </div>
+        </Section>
 
-        {/* Assignment */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Assignment & Schedule</h2>
+        <Section title="Assignment & Schedule">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormSelect label="Assigned To" value={form.assigned_user_id} onChange={e => set('assigned_user_id', e.target.value)}>
               <option value="">Unassigned</option>
@@ -267,25 +300,25 @@ export default function ActivityForm() {
               <option value="">None</option>
               {users.map(u => <option key={u.user_id} value={u.user_id}>{u.full_name}</option>)}
             </FormSelect>
-            <FormDateInput label="Start Date" id="act-start-date" value={form.start_date} onChange={v => set('start_date', v)} />
-            <FormDateInput label="End Date" id="act-end-date" value={form.end_date} onChange={v => set('end_date', v)} />
+            <FormDateInput label="Start Date" id="act-start" value={form.start_date} onChange={v => set('start_date', v)} />
+            <FormDateInput label="End Date" id="act-end" value={form.end_date} onChange={v => set('end_date', v)} />
           </div>
-        </div>
+        </Section>
 
-        {/* Budget & Status */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Budget & Status</h2>
+        <Section title="Budget & Status">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput
-              label={isEdit ? "Budgeted Amount (TZS) — read only after creation" : "Budgeted Amount (TZS)"}
-              required={!isEdit}
-              type="number"
-              value={form.budgeted_amount}
-              onChange={e => set('budgeted_amount', e.target.value)}
-              placeholder="500000"
-              disabled={isEdit}
-              className={isEdit ? 'opacity-60 cursor-not-allowed' : ''}
-            />
+            <div>
+              <FormInput
+                label={isEdit ? 'Budgeted Amount (read-only after creation)' : 'Budgeted Amount (TZS)'}
+                required={!isEdit}
+                type="number"
+                value={form.budgeted_amount}
+                onChange={e => set('budgeted_amount', e.target.value)}
+                placeholder="500000"
+                disabled={isEdit}
+              />
+              {isEdit && <p className="text-xs text-gray-400 mt-1">Use Budget Revision on the activity detail page to change.</p>}
+            </div>
             <FormSelect label="Status" value={form.status} onChange={e => set('status', e.target.value)}>
               <option value="pending">Pending</option>
               <option value="in_progress">In Progress</option>
@@ -295,15 +328,11 @@ export default function ActivityForm() {
               {isEdit && <option value="overdue">Overdue</option>}
             </FormSelect>
           </div>
-          {isEdit && (
-            <p className="text-xs text-gray-400">To change the budget, use the "Request Budget Revision" option on the activity detail page.</p>
-          )}
-        </div>
+        </Section>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between">
-          <Link to={isEdit ? `/activities/${id}` : '/activities'}
-            className="px-5 py-2.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+        <div className="flex items-center justify-between pb-8">
+          <Link to={isEdit ? `/activities/${id}` : fromProjectId ? `/projects/${fromProjectId}` : '/activities'}
+            className="px-5 py-2.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
             Cancel
           </Link>
           <button type="submit" disabled={saving}
@@ -311,6 +340,7 @@ export default function ActivityForm() {
             {saving ? 'Saving...' : isEdit ? 'Update Activity' : 'Create Activity'}
           </button>
         </div>
+
       </form>
     </div>
   );

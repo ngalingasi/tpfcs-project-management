@@ -33,6 +33,9 @@ const updateUserSchema = {
   }).min(1),
 };
 
+// IMPORTANT: Static routes MUST come before /:userId to avoid param conflicts
+router.get('/meta/skills', auth(), userController.getSkills);
+
 router.route('/')
   .post(auth('manageUsers'), validate(createUserSchema), userController.createUser)
   .get(auth('getUsers'), userController.getUsers);
@@ -42,8 +45,6 @@ router.route('/:userId')
   .patch(auth('manageUsers'), validate(updateUserSchema), userController.updateUser)
   .delete(auth('manageUsers'), userController.deleteUser);
 
-module.exports = router;
-
-// Skills
-router.get('/meta/skills', auth(), userController.getSkills);
 router.put('/:userId/skills', auth('manageUsers'), userController.updateSkills);
+
+module.exports = router;

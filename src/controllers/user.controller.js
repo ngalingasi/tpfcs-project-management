@@ -1,14 +1,12 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
-const userModel = require('../models/user.model');
+const userModel  = require('../models/user.model');
 const emailModel = require('../models/email.model');
-const crypto = require('crypto');
+const crypto     = require('crypto');
 
 const createUser = catchAsync(async (req, res) => {
-  // Generate temp password if not provided
   if (!req.body.password) {
     req.body.password = crypto.randomBytes(8).toString('hex');
-    // Send welcome email with temp credentials
     const user = await userModel.createUser(req.body, req.user.user_id);
     await emailModel.sendWelcomeEmail(user.email, user.full_name, user.username, req.body.password).catch(() => {});
     return res.status(httpStatus.CREATED).send(user);
@@ -37,8 +35,6 @@ const deleteUser = catchAsync(async (req, res) => {
   res.status(httpStatus.NO_CONTENT).send();
 });
 
-module.exports = { createUser, getUsers, getUser, updateUser, deleteUser };
-
 const getSkills = catchAsync(async (req, res) => {
   const skills = await userModel.getSkills();
   res.send(skills);
@@ -50,4 +46,5 @@ const updateSkills = catchAsync(async (req, res) => {
   res.send(user);
 });
 
-module.exports = Object.assign(module.exports, { getSkills, updateSkills });
+// Single clean export — no Object.assign
+module.exports = { createUser, getUsers, getUser, updateUser, deleteUser, getSkills, updateSkills };
