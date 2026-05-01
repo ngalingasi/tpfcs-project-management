@@ -13,6 +13,7 @@ const createUserSchema = {
     mobile: Joi.string().optional(),
     gender: Joi.string().valid('male', 'female').optional(),
     role: Joi.string().valid('user', 'manager', 'admin').optional(),
+    status: Joi.string().valid('active', 'inactive').optional(),
     password: Joi.string().min(8).optional(),
   }),
 };
