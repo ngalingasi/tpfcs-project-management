@@ -156,10 +156,11 @@ const validateActivityBudget = async (targetId, amount, conn) => {
     [targetId]
   );
 
-  const allocated  = Number(target.allocated_budget);
-  const committed  = Number(agg.committed);
-  const available  = allocated - committed;
+  const allocated = Number(target.allocated_budget);
+  const committed = Number(agg.committed);
+  const available = allocated - committed;
 
+  // Block if target has no budget allocated yet
   if (allocated === 0) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -167,10 +168,11 @@ const validateActivityBudget = async (targetId, amount, conn) => {
     );
   }
 
+  // Block if activity budget exceeds available balance
   if (amount > available) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      `Activity budget exceeds target's available budget. ` +
+      `Activity budget exceeds target available budget. ` +
       `Requested: ${fmt(amount)}, Available: ${fmt(available)} ` +
       `(Target allocated: ${fmt(allocated)}, Already committed: ${fmt(committed)})`
     );

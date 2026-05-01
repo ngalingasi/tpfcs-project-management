@@ -51,7 +51,7 @@ const createActivity = async (body, creatorId) => {
     // Sync target spent tracker
     await syncTargetSpent(target_id, conn);
 
-    return getActivityById(result.insertId);
+    return getActivityById(result.insertId, conn);
   });
 };
 
@@ -92,8 +92,12 @@ const getActivities = async ({ page, limit, target_id, region_id, status, assign
 /**
  * Get single activity by ID
  */
-const getActivityById = async (id) => {
-  const rows = await query(
+const getActivityById = async (id, conn = null) => {
+  const exec = conn
+    ? (sql, p) => conn.query(sql, p).then(([rows]) => rows)
+    : (sql, p) => query(sql, p);
+
+  const rows = await exec(
     `SELECT a.*,
             COALESCE(a.revised_amount, a.budgeted_amount) AS effective_budget,
             r.region_name,
