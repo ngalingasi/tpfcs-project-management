@@ -333,6 +333,62 @@ export default function ProjectDetail() {
             ))}
           </div>
 
+          {/* Financing Modality table */}
+          {(project.financing?.length ?? 0) > 0 && (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">Financing Modality</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400">
+                      {['#','Fund Source','Modality','Category','Financier','Committed','Rate','Currency','Amount (TZS)'].map(h => (
+                        <th key={h} className="text-left py-1.5 pr-3 font-medium last:pr-0">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {project.financing!.map((f, idx) => (
+                      <tr key={f.financing_id ?? idx}>
+                        <td className="py-2 pr-3 text-gray-400">{idx + 1}</td>
+                        <td className="py-2 pr-3 font-medium text-gray-700 dark:text-gray-300">{f.fund_source ?? '—'}</td>
+                        <td className="py-2 pr-3 text-gray-500">{f.financial_modality ?? '—'}</td>
+                        <td className="py-2 pr-3 text-gray-500">{f.financial_category ?? '—'}</td>
+                        <td className="py-2 pr-3 text-gray-500">{f.financier ?? '—'}</td>
+                        <td className="py-2 pr-3 text-gray-500">{f.committed_amount != null ? Number(f.committed_amount).toLocaleString() : '—'}</td>
+                        <td className="py-2 pr-3 text-gray-500">{f.exchange_rate != null ? Number(f.exchange_rate).toLocaleString() : '—'}</td>
+                        <td className="py-2 pr-3 text-gray-500">{f.currency ?? '—'}</td>
+                        <td className="py-2 font-medium text-gray-700 dark:text-gray-300">
+                          {f.amount_tzs != null
+                            ? `TZS ${Number(f.amount_tzs).toLocaleString()}`
+                            : f.committed_amount && f.exchange_rate
+                              ? `TZS ${(Number(f.committed_amount) * Number(f.exchange_rate)).toLocaleString()}`
+                              : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Total row */}
+                    {project.financing!.length > 1 && (
+                      <tr className="border-t-2 border-gray-200 dark:border-gray-700 font-semibold">
+                        <td colSpan={8} className="py-2 pr-3 text-gray-600 dark:text-gray-400">Total</td>
+                        <td className="py-2 text-brand-600 dark:text-brand-400">
+                          TZS {project.financing!
+                            .reduce((sum, f) => {
+                              const tzs = f.amount_tzs
+                                ?? (f.committed_amount && f.exchange_rate
+                                  ? Number(f.committed_amount) * Number(f.exchange_rate)
+                                  : 0);
+                              return sum + Number(tzs);
+                            }, 0)
+                            .toLocaleString()}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Narrative fields with bullet list support */}
           {[
             { label: 'Project Background',    value: project.project_background,      bullets: false },

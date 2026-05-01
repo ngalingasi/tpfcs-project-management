@@ -230,7 +230,8 @@ const updateProject = async (id, body, updatorId) => {
     'project_manager_id',
   ];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
-  if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
+  // Allow financing-only updates (no scalar fields required if financing was updated)
+  if (!fields.length && body.financing === undefined) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
   const setClauses = fields.map((f) => `${f} = ?`).join(', ');
   const values     = fields.map((f) => body[f]);
   await query(`UPDATE projects SET ${setClauses} WHERE project_id = ?`, [...values, id]);
