@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router';
+import { useParams, Link, useNavigate } from 'react-router';
 import { projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, lookupsApi } from '../../api';
 import type { Project, Objective, Target, Activity, ProjectBudgetSummary, Region, Sector } from '../../types';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
@@ -112,68 +112,6 @@ function TargetForm({ objectives, onSaved, onClose }: { objectives: Objective[];
 }
 
 // ── Activity Form ─────────────────────────────────────────────────────────────
-function ActivityForm({ targets, regions, onSaved, onClose }: { targets: Target[]; regions: Region[]; onSaved: () => void; onClose: () => void }) {
-  const [form, setForm] = useState({ target_id: targets[0]?.target_id?.toString() ?? '', region_id: '', name: '', description: '', council: '', ward: '', budgeted_amount: '', start_date: '', end_date: '', status: 'pending' });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.target_id || !form.budgeted_amount) { setError('Target, name and budget are required'); return; }
-    setSaving(true);
-    try {
-      await activitiesApi.create({
-        ...form,
-        target_id: Number(form.target_id),
-        region_id: form.region_id ? Number(form.region_id) : null,
-        budgeted_amount: Number(form.budgeted_amount),
-      });
-      onSaved();
-      onClose();
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Failed to save');
-    } finally { setSaving(false); }
-  };
-
-  return (
-    <form onSubmit={save} className="space-y-4">
-      {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg">{error}</p>}
-      <div className="grid grid-cols-2 gap-3">
-        <FormSelect label="Target" required value={form.target_id} onChange={e => set('target_id', e.target.value)}>
-          <option value="">Select target...</option>
-          {targets.map(t => <option key={t.target_id} value={t.target_id}>{t.name}</option>)}
-        </FormSelect>
-        <FormSelect label="Region" value={form.region_id} onChange={e => set('region_id', e.target.value)}>
-          <option value="">Select region...</option>
-          {regions.map(r => <option key={r.region_id} value={r.region_id}>{r.region_name}</option>)}
-        </FormSelect>
-      </div>
-      <FormInput label="Activity Name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Construct borehole at Mwanakwerekwe" />
-      <FormTextArea label="Description" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe this activity..." />
-      <div className="grid grid-cols-2 gap-3">
-        <FormInput label="Council" value={form.council} onChange={e => set('council', e.target.value)} placeholder="Council name" />
-        <FormInput label="Ward" value={form.ward} onChange={e => set('ward', e.target.value)} placeholder="Ward name" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <FormInput label="Budgeted Amount (TZS)" required type="number" value={form.budgeted_amount} onChange={e => set('budgeted_amount', e.target.value)} placeholder="500000" />
-        <FormSelect label="Status" value={form.status} onChange={e => set('status', e.target.value)}>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="on_hold">On Hold</option>
-        </FormSelect>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <FormInput label="Start Date" type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
-        <FormInput label="End Date" type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
-      </div>
-      <div className="flex justify-end gap-3 pt-2">
-        <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">Cancel</button>
-        <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50">{saving ? 'Saving...' : 'Create Activity'}</button>
-      </div>
-    </form>
-  );
-}
 
 // ── Allocate Budget Form ─────────────────────────────────────────────────────────
 function AllocateBudgetForm({ target, projectBudget, onSaved, onClose }: {
@@ -228,7 +166,8 @@ function AllocateBudgetForm({ target, projectBudget, onSaved, onClose }: {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
-  const pid = Number(id);
+  const pid      = Number(id);
+  const navigate = useNavigate();
 
   const [project,      setProject]      = useState<Project | null>(null);
   const [objectives,   setObjectives]   = useState<Objective[]>([]);
@@ -238,7 +177,7 @@ export default function ProjectDetail() {
   const [regions,      setRegions]      = useState<Region[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [tab,          setTab]          = useState<Tab>('details');
-  const [modal,        setModal]        = useState<'objective' | 'target' | 'activity' | 'allocate' | null>(null);
+  const [modal,        setModal]        = useState<'objective' | 'target' | 'allocate' | null>(null);
   const [allocateTarget, setAllocateTarget] = useState<Target | null>(null);
 
   const loadAll = useCallback(async () => {
@@ -505,9 +444,11 @@ export default function ProjectDetail() {
       {tab === 'activities' && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <button onClick={() => setModal('activity')} disabled={targets.length === 0}
+            <button
+              onClick={() => targets.length > 0 ? navigate(`/activities/new?project_id=${pid}`) : undefined}
+              disabled={targets.length === 0}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={targets.length === 0 ? 'Add a target first' : ''}>
+              title={targets.length === 0 ? 'Add a target first' : 'Create a new activity'}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Add Activity
             </button>
@@ -551,9 +492,7 @@ export default function ProjectDetail() {
         <TargetForm objectives={objectives} onSaved={loadAll} onClose={() => setModal(null)} />
       </Modal>
 
-      <Modal isOpen={modal === 'activity'} onClose={() => setModal(null)} title="Add Activity" size="lg">
-        <ActivityForm targets={targets} regions={regions} onSaved={loadAll} onClose={() => setModal(null)} />
-      </Modal>
+      {/* Activity creation uses the full standalone form at /activities/new */}
 
       <Modal isOpen={modal === 'allocate' && !!allocateTarget} onClose={() => setModal(null)} title="Allocate Budget to Target" size="sm">
         {allocateTarget && (

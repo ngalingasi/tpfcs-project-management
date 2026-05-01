@@ -9,6 +9,7 @@ export default function ActivityForm() {
   const [searchParams]     = useSearchParams();
   const navigate           = useNavigate();
   const isEdit             = !!id;
+  const fromProjectId      = searchParams.get('project_id');
 
   const [form, setForm] = useState({
     target_id:        searchParams.get('target_id') ?? '',
@@ -61,7 +62,15 @@ export default function ActivityForm() {
             allTargets.push(...tRes.data.map(t => ({ ...t, name: `${project.name} → ${obj.title} → ${t.name}` })));
           }
         }
-        setTargets(allTargets);
+        // If coming from a specific project, filter targets to that project only
+        const filtered = fromProjectId
+          ? allTargets.filter(t => {
+              // Check if target belongs to the project via its name prefix
+              const proj = pRes.data.results.find(p => p.project_id === Number(fromProjectId));
+              return proj ? t.name.startsWith(proj.name) : true;
+            })
+          : allTargets;
+        setTargets(filtered.length > 0 ? filtered : allTargets);
 
         // If editing, load existing activity
         if (isEdit) {
@@ -115,7 +124,12 @@ export default function ActivityForm() {
         navigate(`/activities/${id}`);
       } else {
         const res = await activitiesApi.create(payload);
-        navigate(`/activities/${res.data.activity_id}`);
+        // Go back to project detail if we came from there
+        if (fromProjectId) {
+          navigate(`/projects/${fromProjectId}`);
+        } else {
+          navigate(`/activities/${res.data.activity_id}`);
+        }
       }
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Failed to save activity');
@@ -132,7 +146,15 @@ export default function ActivityForm() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-5">
-        <Link to="/activities" className="hover:text-brand-500">Activities</Link>
+        {fromProjectId ? (
+          <>
+            <Link to="/projects" className="hover:text-brand-500">Projects</Link>
+            <span>/</span>
+            <Link to={`/projects/${fromProjectId}`} className="hover:text-brand-500">Project</Link>
+          </>
+        ) : (
+          <Link to="/activities" className="hover:text-brand-500">Activities</Link>
+        )}
         <span>/</span>
         <span className="text-gray-700 dark:text-gray-300">{isEdit ? 'Edit Activity' : 'New Activity'}</span>
       </div>
