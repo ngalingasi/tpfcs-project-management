@@ -31,10 +31,11 @@ export default function ProjectForm() {
     setLoading(true);
     Promise.all([
       lookupsApi.sectors(), lookupsApi.regions(), lookupsApi.implementers(),
-      usersApi.list({ limit: 100, role: 'manager' }),
+      usersApi.list({ limit: 100, status: 'active' }),
     ]).then(([s, r, i, u]) => {
       setSectors(s.data); setRegions(r.data);
-      setImplementers(i.data); setManagers(u.data.results);
+      setImplementers(i.data); // All active users can be assigned as project manager
+      setManagers(u.data.results);
     }).finally(() => setLoading(false));
 
     if (isEdit) {
