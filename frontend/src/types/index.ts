@@ -61,6 +61,37 @@ export interface Implementer {
 }
 
 // ── Project ───────────────────────────────────────────────────────────────────
+export interface ProjectFinancing {
+  financing_id?: number;
+  project_id?: number;
+  fund_source?: string;
+  financial_modality?: string;
+  financial_category?: string;
+  financier?: string;
+  committed_amount?: number;
+  exchange_rate?: number;
+  currency?: string;
+  amount_tzs?: number;
+}
+
+export interface ProjectCoordinator {
+  coordinator_id?: number;
+  project_id?: number;
+  full_name: string;
+  email?: string;
+  phone_number?: string;
+  address?: string;
+}
+
+export interface ProjectEmployment {
+  employment_id?: number;
+  project_id?: number;
+  category: string;
+  type: string;
+  foreign_count: number;
+  domestic_count: number;
+}
+
 export interface Project {
   project_id: number;
   name: string;
@@ -68,24 +99,38 @@ export interface Project {
   project_nature?: string;
   sector_id?: number;
   sector_name?: string;
+  sub_sector?: string;
   start_date?: string;
   end_date?: string;
+  // Financing
   fund_structure?: string;
   funding?: string;
   estimated_cost?: number;
   project_life_span?: number;
+  // Narrative
   project_background?: string;
+  project_objectives?: string;        // comma-separated, displayed as bullets
+  project_main_activities?: string;   // comma-separated, displayed as bullets
+  project_beneficiaries?: string;     // comma-separated, displayed as bullets
+  project_use_capacity?: string;
+  project_scope?: string;
+  // Admin
   cost_center?: string;
   project_reference?: string;
   relevancy_fypds?: string;
   implementation_modality?: string;
   compensation?: string;
+  has_land?: number;
   job_created_no?: string;
   project_manager_id?: number;
   project_manager_name?: string;
   created_at: string;
+  // Relations
   regions?: Region[];
   implementers?: ProjectImplementer[];
+  financing?: ProjectFinancing[];
+  coordinators?: ProjectCoordinator[];
+  employment?: ProjectEmployment[];
   objectives?: Objective[];
 }
 

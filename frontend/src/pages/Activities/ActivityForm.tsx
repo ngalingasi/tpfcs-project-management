@@ -3,6 +3,8 @@ import { useParams, useNavigate, useSearchParams, Link } from 'react-router';
 import { activitiesApi, targetsApi, objectivesApi, projectsApi, lookupsApi, usersApi } from '../../api';
 import type { Target, Region, UserRecord } from '../../types';
 import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
+import { toast } from '../../components/tpfcs/Toast';
+import BackButton from '../../components/tpfcs/BackButton';
 
 export default function ActivityForm() {
   const { id }             = useParams<{ id: string }>();
@@ -10,9 +12,12 @@ export default function ActivityForm() {
   const navigate           = useNavigate();
   const isEdit             = !!id;
   const fromProjectId      = searchParams.get('project_id');
+  const mainActivityId     = searchParams.get('main_activity_id');
 
   const [form, setForm] = useState({
     target_id:        searchParams.get('target_id') ?? '',
+    main_activity_id: searchParams.get('main_activity_id') ?? '',
+    main_activity_id: searchParams.get('main_activity_id') ?? '',
     region_id:        '',
     name:             '',
     description:      '',
@@ -93,6 +98,7 @@ export default function ActivityForm() {
             start_date:       a.start_date?.slice(0, 10) ?? '',
             end_date:         a.end_date?.slice(0, 10) ?? '',
             budgeted_amount:  a.budgeted_amount?.toString() ?? '',
+            main_activity_id: a.main_activity_id?.toString() ?? '',
             status:           a.status ?? 'pending',
           });
         }
@@ -125,14 +131,17 @@ export default function ActivityForm() {
       } else {
         const res = await activitiesApi.create(payload);
         // Go back to project detail if we came from there
+        toast.success(isEdit ? 'Activity updated' : 'Activity created', isEdit ? 'Changes saved successfully' : res?.data?.name);
         if (fromProjectId) {
           navigate(`/projects/${fromProjectId}`);
         } else {
-          navigate(`/activities/${res.data.activity_id}`);
+          navigate(`/activities/${isEdit ? id : res?.data?.activity_id}`);
         }
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Failed to save activity');
+      const msg = err?.response?.data?.message ?? 'Failed to save activity';
+      toast.error('Save failed', msg);
+      setError(msg);
     } finally { setSaving(false); }
   };
 
@@ -145,7 +154,8 @@ export default function ActivityForm() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-5">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
         {fromProjectId ? (
           <>
             <Link to="/projects" className="hover:text-brand-500">Projects</Link>
@@ -157,12 +167,19 @@ export default function ActivityForm() {
         )}
         <span>/</span>
         <span className="text-gray-700 dark:text-gray-300">{isEdit ? 'Edit Activity' : 'New Activity'}</span>
+        </div>
+        <BackButton />
       </div>
 
       <h1 className="text-xl font-bold text-gray-800 dark:text-white mb-6">
         {isEdit ? 'Edit Activity' : 'Create New Activity'}
       </h1>
 
+      {mainActivityId && (
+        <div className="mb-5 p-3 rounded-lg bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-sm text-purple-700 dark:text-purple-400">
+          <span className="font-medium">Creating Sub-Activity</span> — this will be linked to the parent activity.
+        </div>
+      )}
       {error && <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-sm border border-red-200 dark:border-red-500/20">{error}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -197,6 +214,25 @@ export default function ActivityForm() {
             }
             return null;
           })()}
+          {/* Main Activity (parent) selector */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Parent Activity (optional — leave blank for top-level activity)
+            </label>
+            <input
+              type="text"
+              value={form.main_activity_id}
+              onChange={e => setForm(f => ({ ...f, main_activity_id: e.target.value }))}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:border-brand-400"
+              placeholder="Enter parent Activity ID to create a sub-activity"
+            />
+            {form.main_activity_id && (
+              <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                ↳ This will be created as a sub-activity under Activity #{form.main_activity_id}
+              </p>
+            )}
+          </div>
+
           <FormInput label="Activity Name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Construct borehole at Mwanakwerekwe" />
           <FormTextArea label="Description" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe this activity..." />
         </div>

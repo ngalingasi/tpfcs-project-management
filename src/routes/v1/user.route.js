@@ -43,3 +43,7 @@ router.route('/:userId')
   .delete(auth('manageUsers'), userController.deleteUser);
 
 module.exports = router;
+
+// Skills
+router.get('/meta/skills', auth(), userController.getSkills);
+router.put('/:userId/skills', auth('manageUsers'), userController.updateSkills);

@@ -33,3 +33,11 @@ const getStatusHistory = catchAsync(async (req, res) => {
 });
 
 module.exports = { createActivity, getActivities, getActivity, updateActivity, deleteActivity, getStatusHistory };
+
+const getSubActivities = catchAsync(async (req, res) => {
+  const { activityId } = req.params;
+  const subs = await activityService.getSubActivities(activityId);
+  res.send(subs);
+});
+
+module.exports = Object.assign(module.exports, { getSubActivities });

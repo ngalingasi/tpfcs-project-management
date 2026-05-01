@@ -4,6 +4,7 @@ import { projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, looku
 import type { Project, Objective, Target, Activity, ProjectBudgetSummary, Region, Sector } from '../../types';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
+import BulletList from '../../components/tpfcs/BulletList';
 import Modal from '../../components/tpfcs/Modal';
 import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
 
@@ -301,20 +302,29 @@ export default function ProjectDetail() {
       {/* ── DETAILS TAB ── */}
       {tab === 'details' && (
         <div className="space-y-4">
+          {/* Info grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { label: 'Programme',           value: project.programme_name },
-              { label: 'Nature',              value: project.project_nature },
-              { label: 'Start Date',          value: dt(project.start_date) },
-              { label: 'End Date',            value: dt(project.end_date) },
-              { label: 'Life Span',           value: project.project_life_span ? `${project.project_life_span} years` : null },
-              { label: 'Estimated Cost',      value: fmt(project.estimated_cost) },
-              { label: 'Fund Structure',      value: project.fund_structure },
-              { label: 'Funding Source',      value: project.funding },
-              { label: 'Cost Center',         value: project.cost_center },
-              { label: 'Implementation',      value: project.implementation_modality },
-              { label: 'Relevancy (FYDP)',    value: project.relevancy_fypds },
-              { label: 'Jobs Created',        value: project.job_created_no },
+              { label: 'Programme',            value: project.programme_name },
+              { label: 'Nature',               value: project.project_nature },
+              { label: 'Sub Sector',           value: project.sub_sector },
+              { label: 'Start Date',           value: dt(project.start_date) },
+              { label: 'End Date',             value: dt(project.end_date) },
+              { label: 'Life Span',            value: project.project_life_span ? `${project.project_life_span} years` : null },
+              { label: 'Estimated Cost',       value: fmt(project.estimated_cost) },
+              { label: 'Fund Structure',       value: project.fund_structure },
+              { label: 'Financial Modality',   value: project.financial_modality },
+              { label: 'Financial Category',   value: project.financial_category },
+              { label: 'Financier',            value: project.financier },
+              { label: 'Committed Amount',     value: project.committed_amount ? `${project.currency ?? ''} ${Number(project.committed_amount).toLocaleString()}` : null },
+              { label: 'Exchange Rate',        value: project.exchange_rate ? `1 ${project.currency} = TZS ${Number(project.exchange_rate).toLocaleString()}` : null },
+              { label: 'Funding Source',       value: project.funding },
+              { label: 'Cost Center',          value: project.cost_center },
+              { label: 'Implementation',       value: project.implementation_modality },
+              { label: 'Relevancy (FYDP)',     value: project.relevancy_fypds },
+              { label: 'Jobs Created',         value: project.job_created_no },
+              { label: 'Compensation',         value: project.compensation },
+              { label: 'Has Land',             value: project.has_land === 1 ? 'Yes' : project.has_land === 0 ? 'No' : null },
             ].filter(i => i.value).map(i => (
               <div key={i.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
                 <p className="text-xs text-gray-400 dark:text-gray-500">{i.label}</p>
@@ -322,32 +332,118 @@ export default function ProjectDetail() {
               </div>
             ))}
           </div>
-          {project.project_background && (
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-              <p className="text-xs text-gray-400 mb-2">Background</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{project.project_background}</p>
+
+          {/* Narrative fields with bullet list support */}
+          {[
+            { label: 'Project Background',    value: project.project_background,      bullets: false },
+            { label: 'Project Objectives',    value: project.project_objectives,      bullets: true  },
+            { label: 'Main Activities',       value: project.project_main_activities, bullets: true  },
+            { label: 'Beneficiaries',         value: project.project_beneficiaries,   bullets: true  },
+            { label: 'Project Use Capacity',  value: project.project_use_capacity,    bullets: false },
+            { label: 'Project Scope',         value: project.project_scope,           bullets: true  },
+          ].filter(i => i.value).map(i => (
+            <div key={i.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs text-gray-400 mb-2">{i.label}</p>
+              {i.bullets ? <BulletList value={i.value} /> : <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{i.value}</p>}
             </div>
-          )}
+          ))}
+
+          {/* Regions */}
           {(project.regions?.length ?? 0) > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
               <p className="text-xs text-gray-400 mb-2">Regions</p>
               <div className="flex flex-wrap gap-2">
                 {project.regions!.map(r => (
-                  <span key={r.region_id} className="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">{r.region_name}</span>
+                  <span key={r.region_id} className="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">
+                    {r.region_name}
+                  </span>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Implementers table */}
           {(project.implementers?.length ?? 0) > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-              <p className="text-xs text-gray-400 mb-3">Implementers</p>
-              <div className="space-y-2">
-                {project.implementers!.map(i => (
-                  <div key={i.link_id} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{i.name}</span>
-                    {i.involvement && <span className="text-xs text-gray-400">{i.involvement}</span>}
-                  </div>
-                ))}
+              <p className="text-xs text-gray-400 mb-3">Project Implementers</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400">
+                    {['#','Vote Name','Vote Code','Sub Vote','Sub Vote Name','Implementer','Cost Center','Involvement','Role'].map(h => <th key={h} className="text-left py-1.5 pr-3 font-medium">{h}</th>)}
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {project.implementers!.map((imp, idx) => (
+                      <tr key={imp.link_id}>
+                        <td className="py-1.5 pr-3 text-gray-400">{idx + 1}</td>
+                        <td className="py-1.5 pr-3 font-medium text-gray-700 dark:text-gray-300">{imp.vote_name ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{imp.vote_code ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{imp.sub_vote_code ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{imp.sub_vote_name ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-gray-700 dark:text-gray-300">{imp.name}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{imp.cost_center ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{imp.involvement ?? '—'}</td>
+                        <td className="py-1.5 text-gray-500 capitalize">{(imp as any).role_type ?? 'implementer'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Coordinators */}
+          {(project.coordinators?.length ?? 0) > 0 && (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs text-gray-400 mb-3">Project Coordinators</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400">
+                    {['#','Name','Email','Phone','Address'].map(h => <th key={h} className="text-left py-1.5 pr-3 font-medium">{h}</th>)}
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {project.coordinators!.map((c, idx) => (
+                      <tr key={c.coordinator_id}>
+                        <td className="py-1.5 pr-3 text-gray-400">{idx + 1}</td>
+                        <td className="py-1.5 pr-3 font-medium text-gray-700 dark:text-gray-300">{c.full_name}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{c.email ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{c.phone_number ?? '—'}</td>
+                        <td className="py-1.5 text-gray-500">{c.address ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Employment */}
+          {(project.employment?.length ?? 0) > 0 && (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs text-gray-400 mb-3">Employment Category</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400">
+                    {['#','Category','Type','Foreign','Domestic','Sub Total'].map(h => <th key={h} className="text-left py-1.5 pr-3 font-medium">{h}</th>)}
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                    {project.employment!.map((e, idx) => (
+                      <tr key={e.employment_id}>
+                        <td className="py-1.5 pr-3 text-gray-400">{idx + 1}</td>
+                        <td className="py-1.5 pr-3 font-medium text-gray-700 dark:text-gray-300">{e.category}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{e.type}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{e.foreign_count}</td>
+                        <td className="py-1.5 pr-3 text-gray-500">{e.domestic_count}</td>
+                        <td className="py-1.5 font-medium text-gray-700 dark:text-gray-300">{(e.foreign_count + e.domestic_count).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-gray-200 dark:border-gray-700 font-semibold">
+                      <td colSpan={3} className="py-2 pr-3 text-gray-600 dark:text-gray-400">Total</td>
+                      <td className="py-2 pr-3 text-gray-700 dark:text-gray-300">{project.employment!.reduce((s,e) => s + e.foreign_count, 0)}</td>
+                      <td className="py-2 pr-3 text-gray-700 dark:text-gray-300">{project.employment!.reduce((s,e) => s + e.domestic_count, 0)}</td>
+                      <td className="py-2 text-brand-600 dark:text-brand-400">{project.employment!.reduce((s,e) => s + e.foreign_count + e.domestic_count, 0).toLocaleString()}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

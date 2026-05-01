@@ -28,6 +28,13 @@ function UserForm({ initial, onSaved, onClose }: UserFormProps) {
   const [error,  setError]  = useState('');
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
+  useEffect(() => {
+    usersApi.getSkills().then(r => setAllSkills(r.data)).catch(() => {});
+  }, []);
+
+  const toggleSkill = (id: number) =>
+    setSelectedSkills(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.full_name.trim()) { setError('Full name is required'); return; }

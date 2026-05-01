@@ -27,8 +27,9 @@ export default function ActivityDetail() {
   const [activity,   setActivity]   = useState<Activity | null>(null);
   const [history,    setHistory]    = useState<ActivityStatusHistory[]>([]);
   const [revisions,  setRevisions]  = useState<BudgetRevision[]>([]);
+  const [subActivities, setSubActivities] = useState<Activity[]>([]);
   const [loading,    setLoading]    = useState(true);
-  const [tab,        setTab]        = useState<'details' | 'history' | 'budget'>('details');
+  const [tab,        setTab]        = useState<'details' | 'history' | 'budget' | 'sub'>('details');
 
   // Modals
   const [statusModal,   setStatusModal]   = useState(false);
@@ -57,8 +58,9 @@ export default function ActivityDetail() {
       setActivity(aRes.data);
       setHistory(hRes.data);
       budgetApi.listRevisions({ activity_id: aid })
-        .then(r => setRevisions(r.data))
-        .catch(() => {});
+        .then(r => setRevisions(r.data)).catch(() => {});
+      activitiesApi.getSubActivities(aid)
+        .then(r => setSubActivities(r.data)).catch(() => {});
     } finally { setLoading(false); }
   };
 
@@ -72,10 +74,10 @@ export default function ActivityDetail() {
         status: newStatus,
         ...(progress ? { progress: Number(progress) } : {}),
       });
-      setStatusModal(false);
-      load();
+      setStatusModal(false); load();
+      toast.success('Status updated', `Activity is now ${newStatus.replace('_',' ')}`);
     } catch (err: any) {
-      setStatusErr(err?.response?.data?.message ?? 'Failed to update status');
+      const m = err?.response?.data?.message ?? 'Failed to update status'; toast.error('Update failed', m); setStatusErr(m);
     } finally { setUpdating(false); }
   };
 
@@ -113,10 +115,13 @@ export default function ActivityDetail() {
   return (
     <div className="space-y-5">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-        <Link to="/activities" className="hover:text-brand-500">Activities</Link>
-        <span>/</span>
-        <span className="text-gray-700 dark:text-gray-300 font-medium truncate">{activity.name}</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <Link to="/activities" className="hover:text-brand-500">Activities</Link>
+          <span>/</span>
+          <span className="text-gray-700 dark:text-gray-300 font-medium truncate">{activity.name}</span>
+        </div>
+        <BackButton to="/activities" />
       </div>
 
       {/* Header */}
@@ -166,7 +171,8 @@ export default function ActivityDetail() {
         {[
           { key: 'details',  label: 'Details' },
           { key: 'history',  label: `Status History (${history.length})` },
-          { key: 'budget',   label: `Budget (${revisions.length} revisions)` },
+          { key: 'budget',    label: `Budget (${revisions.length} revisions)` },
+      { key: 'sub',       label: `Sub-Activities (${subActivities.length})` },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
@@ -277,6 +283,42 @@ export default function ActivityDetail() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sub-Activities Tab */}
+      {tab === 'sub' && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Link
+              to={`/activities/new?main_activity_id=${aid}&target_id=${activity.target_id}`}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Sub-Activity
+            </Link>
+          </div>
+          {subActivities.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-sm">No sub-activities yet</div>
+          ) : subActivities.map(s => (
+            <div key={s.activity_id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{s.name}</h3>
+                  <StatusBadge status={s.status} />
+                </div>
+                <Link to={`/activities/${s.activity_id}`} className="text-xs text-brand-500 hover:text-brand-600">View →</Link>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-xs mb-2">
+                <div><p className="text-gray-400">Budget</p><p className="font-medium text-gray-700 dark:text-gray-300">TZS {Number(s.effective_budget).toLocaleString()}</p></div>
+                <div><p className="text-gray-400">Progress</p><p className="font-medium text-gray-700 dark:text-gray-300">{s.progress}%</p></div>
+                <div><p className="text-gray-400">Status</p><p className="font-medium text-gray-700 dark:text-gray-300 capitalize">{s.status.replace('_',' ')}</p></div>
+              </div>
+              <BudgetBar value={s.progress} />
+            </div>
+          ))}
         </div>
       )}
 

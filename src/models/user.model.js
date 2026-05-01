@@ -52,6 +52,15 @@ const getUsers = async ({ page, limit, role, status, search }) => {
     [...params, l, offset]
   );
 
+  // Attach skills to each user
+  for (const user of users) {
+    user.skills = await query(
+      `SELECT s.skill_id, s.name, s.category FROM skills s
+       JOIN user_skills us ON us.skill_id = s.skill_id
+       WHERE us.user_id = ? ORDER BY s.name`,
+      [user.user_id]
+    );
+  }
   return { results: users, ...paginate(total) };
 };
 
@@ -61,7 +70,26 @@ const getUsers = async ({ page, limit, role, status, search }) => {
 const getUserById = async (id) => {
   const rows = await query(`SELECT ${SAFE_FIELDS} FROM users WHERE user_id = ?`, [id]);
   if (!rows.length) throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
-  return rows[0];
+  const user = rows[0];
+  user.skills = await query(
+    `SELECT s.skill_id, s.name, s.category
+     FROM skills s JOIN user_skills us ON us.skill_id = s.skill_id
+     WHERE us.user_id = ? ORDER BY s.category, s.name`,
+    [id]
+  );
+  return user;
+};
+
+const getSkills = async () => {
+  return query('SELECT * FROM skills ORDER BY category, name', []);
+};
+
+const updateUserSkills = async (userId, skillIds = []) => {
+  // Remove all then re-insert
+  await query('DELETE FROM user_skills WHERE user_id = ?', [userId]);
+  for (const skillId of skillIds) {
+    await query('INSERT IGNORE INTO user_skills (user_id, skill_id) VALUES (?,?)', [userId, skillId]);
+  }
 };
 
 /**
@@ -85,4 +113,4 @@ const deleteUser = async (id) => {
   await query('UPDATE users SET status = "inactive" WHERE user_id = ?', [id]);
 };
 
-module.exports = { createUser, getUsers, getUserById, updateUser, deleteUser };
+module.exports = { createUser, getUsers, getUserById, updateUser, deleteUser, getSkills, updateUserSkills };

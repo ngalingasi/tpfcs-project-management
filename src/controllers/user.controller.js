@@ -38,3 +38,16 @@ const deleteUser = catchAsync(async (req, res) => {
 });
 
 module.exports = { createUser, getUsers, getUser, updateUser, deleteUser };
+
+const getSkills = catchAsync(async (req, res) => {
+  const skills = await userModel.getSkills();
+  res.send(skills);
+});
+
+const updateSkills = catchAsync(async (req, res) => {
+  await userModel.updateUserSkills(req.params.userId, req.body.skill_ids ?? []);
+  const user = await userModel.getUserById(req.params.userId);
+  res.send(user);
+});
+
+module.exports = Object.assign(module.exports, { getSkills, updateSkills });

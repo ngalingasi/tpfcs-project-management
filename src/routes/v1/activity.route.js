@@ -78,6 +78,7 @@ router.route('/:activityId')
   .patch(auth('updateActivity'), validate(updateActivitySchema), activityController.updateActivity)
   .delete(auth('manageActivities'), activityController.deleteActivity);
 
-router.get('/:activityId/history', auth('getActivities'), activityController.getStatusHistory);
+router.get('/:activityId/history',       auth('getActivities'), activityController.getStatusHistory);
+router.get('/:activityId/sub-activities', auth('getActivities'), activityController.getSubActivities);
 
 module.exports = router;

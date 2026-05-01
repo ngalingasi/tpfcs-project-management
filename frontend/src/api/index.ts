@@ -59,6 +59,8 @@ export const activitiesApi = {
     client.delete(`/activities/${id}`),
   getHistory: (id: number) =>
     client.get(`/activities/${id}/history`),
+  getSubActivities: (id: number) =>
+    client.get(`/activities/${id}/sub-activities`),
   getStatuses: () =>
     client.get<{ statuses: string[]; transitions: Record<string, string[]> }>('/activities/meta/statuses'),
 };
@@ -115,6 +117,10 @@ export const usersApi = {
     client.patch<UserRecord>(`/users/${id}`, data),
   delete: (id: number) =>
     client.delete(`/users/${id}`),
+  getSkills: () =>
+    client.get('/users/meta/skills'),
+  updateSkills: (id: number, skill_ids: number[]) =>
+    client.put(`/users/${id}/skills`, { skill_ids }),
 };
 
 // ── Lookups ───────────────────────────────────────────────────────────────────

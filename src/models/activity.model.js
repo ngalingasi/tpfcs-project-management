@@ -113,7 +113,17 @@ const getActivityById = async (id, conn = null) => {
     [id]
   );
   if (!rows.length) throw new ApiError(httpStatus.NOT_FOUND, 'Activity not found');
-  return rows[0];
+  const activity = rows[0];
+
+  // Attach sub-activities
+  activity.sub_activities = await (exec === query ? query : exec)(
+    `SELECT a.activity_id, a.name, a.status, a.progress,
+            COALESCE(a.revised_amount, a.budgeted_amount) AS effective_budget
+     FROM activities a WHERE a.main_activity_id = ?`,
+    [id]
+  );
+
+  return activity;
 };
 
 /**
@@ -194,7 +204,24 @@ const getActivityStatusHistory = async (activityId) => {
   );
 };
 
+/**
+ * Get sub-activities for a parent activity
+ */
+const getSubActivities = async (parentId) => {
+  return query(
+    `SELECT a.*,
+            COALESCE(a.revised_amount, a.budgeted_amount) AS effective_budget,
+            r.region_name, au.full_name AS assigned_user_name, t.name AS target_name
+     FROM activities a
+     LEFT JOIN regions r  ON r.region_id  = a.region_id
+     LEFT JOIN users au   ON au.user_id   = a.assigned_user_id
+     LEFT JOIN targets t  ON t.target_id  = a.target_id
+     WHERE a.main_activity_id = ? ORDER BY a.created_at`,
+    [parentId]
+  );
+};
+
 module.exports = {
   createActivity, getActivities, getActivityById, updateActivity,
-  deleteActivity, getActivityStatusHistory,
+  deleteActivity, getActivityStatusHistory, getSubActivities,
 };

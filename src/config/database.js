@@ -15,7 +15,7 @@ const getPool = () => {
       waitForConnections: true,
       connectionLimit:  10,
       queueLimit:       0,
-      timezone:         process.env.DB_TIMEZONE || '+03:00',
+      timezone:         process.env.DB_TIMEZONE || '+03:00', // must match MySQL server timezone
       charset:          'utf8mb4',
     });
     logger.info('MySQL connection pool created');
