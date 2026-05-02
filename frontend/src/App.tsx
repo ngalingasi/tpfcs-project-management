@@ -11,6 +11,7 @@ import ChangePassword     from "./pages/AuthPages/ChangePassword";
 
 // Dashboard
 import TpfcsDashboard     from "./pages/Dashboard/TpfcsDashboard";
+import AnalysisDashboard  from "./pages/Dashboard/AnalysisDashboard";
 
 // Projects
 import ProjectList        from "./pages/Projects/ProjectList";
@@ -61,6 +62,7 @@ export default function App() {
 
               {/* Dashboard */}
               <Route index path="/"                    element={<TpfcsDashboard />} />
+              <Route path="/analysis"                  element={<AnalysisDashboard />} />
 
               {/* Projects */}
               <Route path="/projects"                  element={<ProjectList />} />
