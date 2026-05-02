@@ -30,8 +30,12 @@ export default function ActivityDetail() {
   const [history,    setHistory]    = useState<ActivityStatusHistory[]>([]);
   const [revisions,  setRevisions]  = useState<BudgetRevision[]>([]);
   const [subActivities, setSubActivities] = useState<Activity[]>([]);
+  const [comments,      setComments]      = useState<any[]>([]);
+  const [documents,     setDocuments]     = useState<any[]>([]);
+  const [commentText,   setCommentText]   = useState('');
+  const [addingComment, setAddingComment] = useState(false);
   const [loading,    setLoading]    = useState(true);
-  const [tab,        setTab]        = useState<'details' | 'history' | 'budget' | 'sub'>('details');
+  const [tab,        setTab]        = useState<'details' | 'history' | 'budget' | 'sub' | 'comments' | 'documents'>('details');
 
   // Modals
   const [statusModal,   setStatusModal]   = useState(false);
@@ -63,6 +67,10 @@ export default function ActivityDetail() {
         .then(r => setRevisions(r.data)).catch(() => {});
       activitiesApi.getSubActivities(aid)
         .then(r => setSubActivities(r.data)).catch(() => {});
+      activitiesApi.getComments(aid)
+        .then(r => setComments(r.data)).catch(() => {});
+      activitiesApi.getDocuments(aid)
+        .then(r => setDocuments(r.data)).catch(() => {});
     } finally { setLoading(false); }
   };
 
@@ -138,7 +146,7 @@ export default function ActivityDetail() {
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
-          {!isTerminal && (
+          {!isTerminal && (user?.role === 'admin' || user?.role === 'manager') && (
             <button onClick={() => { setNewStatus(allowedNext[0] ?? 'in_progress'); setProgress(String(activity.progress)); setStatusErr(''); setStatusModal(true); }}
               className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
               Update Status
@@ -175,6 +183,8 @@ export default function ActivityDetail() {
           { key: 'history',  label: `Status History (${history.length})` },
           { key: 'budget',    label: `Budget (${revisions.length} revisions)` },
       { key: 'sub',       label: `Sub-Activities (${subActivities.length})` },
+      { key: 'comments',  label: `Comments (${comments.length})` },
+      { key: 'documents', label: `Documents (${documents.length})` },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
@@ -255,7 +265,7 @@ export default function ActivityDetail() {
             ))}
           </div>
 
-          {!isTerminal && (
+          {!isTerminal && (user?.role === 'admin' || user?.role === 'manager') && (
             <button onClick={() => { setReqAmount(''); setReason(''); setRevErr(''); setRevisionModal(true); }}
               className="flex items-center gap-2 px-4 py-2 text-sm border border-brand-300 dark:border-brand-700 text-brand-600 dark:text-brand-400 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20">
               Request Budget Revision
@@ -321,6 +331,125 @@ export default function ActivityDetail() {
               <BudgetBar value={s.progress} />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Comments Tab */}
+      {tab === 'comments' && (
+        <div className="space-y-4">
+          {/* Add comment */}
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+            <textarea
+              rows={3}
+              value={commentText}
+              onChange={e => setCommentText(e.target.value)}
+              placeholder="Write a comment..."
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-brand-400 resize-none"
+            />
+            <div className="flex justify-end mt-2">
+              <button
+                disabled={addingComment || !commentText.trim()}
+                onClick={async () => {
+                  setAddingComment(true);
+                  try {
+                    const res = await activitiesApi.addComment(aid, commentText);
+                    setComments(prev => [...prev, res.data]);
+                    setCommentText('');
+                    toast.success('Comment added');
+                  } catch (err: any) {
+                    toast.error('Failed', err?.response?.data?.message ?? 'Could not add comment');
+                  } finally { setAddingComment(false); }
+                }}
+                className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50"
+              >
+                {addingComment ? 'Posting...' : 'Post Comment'}
+              </button>
+            </div>
+          </div>
+
+          {/* Comments list */}
+          {comments.length === 0 ? (
+            <p className="text-center py-8 text-sm text-gray-400">No comments yet</p>
+          ) : (
+            <div className="space-y-3">
+              {comments.map((cm: any) => (
+                <div key={cm.comment_id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center text-white text-xs font-bold">
+                        {cm.user_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
+                      </div>
+                      <span className="text-sm font-medium text-gray-800 dark:text-white">{cm.user_name}</span>
+                      <span className="text-xs text-gray-400">{new Date(cm.created_at).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                    </div>
+                    {(user?.role === 'admin' || Number(cm.user_id) === user?.user_id) && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await activitiesApi.deleteComment(aid, cm.comment_id);
+                            setComments(prev => prev.filter((x: any) => x.comment_id !== cm.comment_id));
+                          } catch { toast.error('Failed', 'Could not delete comment'); }
+                        }}
+                        className="text-xs text-red-400 hover:text-red-600"
+                      >Delete</button>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{cm.comment}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Documents Tab */}
+      {tab === 'documents' && (
+        <div className="space-y-4">
+          {/* Upload */}
+          <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 text-center">
+            <label className="cursor-pointer">
+              <input type="file" className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  fd.append('name', file.name);
+                  try {
+                    const res = await activitiesApi.uploadDocument(aid, fd);
+                    setDocuments(prev => [res.data, ...prev]);
+                    toast.success('Document uploaded', file.name);
+                  } catch (err: any) {
+                    toast.error('Upload failed', err?.response?.data?.message ?? 'Could not upload file');
+                  }
+                  e.target.value = '';
+                }}
+              />
+              <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload a document</p>
+            </label>
+          </div>
+
+          {documents.length === 0 ? (
+            <p className="text-center py-8 text-sm text-gray-400">No documents uploaded yet</p>
+          ) : (
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+              {documents.map((doc: any) => (
+                <div key={doc.document_id} className="flex items-center gap-4 px-4 py-3 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <svg className="w-8 h-8 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{doc.name}</p>
+                    <p className="text-xs text-gray-400">{doc.uploaded_by_name} · v{doc.version_number} · {doc.size ? `${(doc.size/1024).toFixed(1)} KB` : ''}</p>
+                  </div>
+                  <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') ?? ''}/uploads/${doc.file_path?.split('/').pop()}`}
+                    target="_blank" rel="noreferrer"
+                    className="text-xs text-brand-500 hover:text-brand-600 flex-shrink-0">
+                    Download
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

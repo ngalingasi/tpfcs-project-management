@@ -61,6 +61,18 @@ export const activitiesApi = {
     client.get(`/activities/${id}/history`),
   getSubActivities: (id: number) =>
     client.get(`/activities/${id}/sub-activities`),
+  createSubActivity: (id: number, data: any) =>
+    client.post(`/activities/${id}/sub-activities`, data),
+  getDocuments: (id: number) =>
+    client.get(`/activities/${id}/documents`),
+  uploadDocument: (id: number, formData: FormData) =>
+    client.post(`/activities/${id}/documents`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getComments: (id: number) =>
+    client.get(`/activities/${id}/comments`),
+  addComment: (id: number, comment: string) =>
+    client.post(`/activities/${id}/comments`, { comment }),
+  deleteComment: (activityId: number, commentId: number) =>
+    client.delete(`/activities/${activityId}/comments/${commentId}`),
   getStatuses: () =>
     client.get<{ statuses: string[]; transitions: Record<string, string[]> }>('/activities/meta/statuses'),
 };

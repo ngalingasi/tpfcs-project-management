@@ -29,6 +29,11 @@ const exitHandler = () => {
 };
 
 const unexpectedErrorHandler = (error) => {
+  // EADDRINUSE — port already in use, likely a stale process
+  if (error.code === 'EADDRINUSE') {
+    logger.error(`Port ${config.port} is already in use. Run: lsof -ti:${config.port} | xargs kill -9`);
+    process.exit(1);
+  }
   logger.error(error);
   exitHandler();
 };

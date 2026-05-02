@@ -58,7 +58,7 @@ const createActivity = async (body, creatorId) => {
 /**
  * Get paginated activities with optional filters
  */
-const getActivities = async ({ page, limit, target_id, region_id, status, assigned_user_id }) => {
+const getActivities = async ({ page, limit, target_id, region_id, status, assigned_user_id, project_manager_id }) => {
   const { limit: l, offset, paginate } = buildPagination(page, limit);
 
   let where = '1=1';
@@ -67,7 +67,16 @@ const getActivities = async ({ page, limit, target_id, region_id, status, assign
   if (target_id)        { where += ' AND a.target_id = ?';        params.push(parseInt(target_id, 10)); }
   if (region_id)        { where += ' AND a.region_id = ?';        params.push(parseInt(region_id, 10)); }
   if (status)           { where += ' AND a.status = ?';           params.push(status); }
-  if (assigned_user_id) { where += ' AND a.assigned_user_id = ?'; params.push(parseInt(assigned_user_id, 10)); }
+  if (assigned_user_id)   { where += ' AND a.assigned_user_id = ?';     params.push(parseInt(assigned_user_id, 10)); }
+  if (project_manager_id) {
+    // Filter activities that belong to projects managed by this user
+    where += ` AND ob.objective_id IN (
+      SELECT ob2.objective_id FROM objectives ob2
+      JOIN projects p2 ON p2.project_id = ob2.project_id
+      WHERE p2.project_manager_id = ?
+    )`;
+    params.push(parseInt(project_manager_id, 10));
+  }
 
   const [countRow] = await query(`SELECT COUNT(*) AS total FROM activities a WHERE ${where}`, params);
   const activities = await query(
@@ -78,10 +87,11 @@ const getActivities = async ({ page, limit, target_id, region_id, status, assign
             su.full_name AS supervisor_name,
             t.name       AS target_name
      FROM activities a
-     LEFT JOIN regions r  ON r.region_id  = a.region_id
-     LEFT JOIN users au   ON au.user_id   = a.assigned_user_id
-     LEFT JOIN users su   ON su.user_id   = a.supervisor_id
-     LEFT JOIN targets t  ON t.target_id  = a.target_id
+     LEFT JOIN regions r     ON r.region_id     = a.region_id
+     LEFT JOIN users au      ON au.user_id      = a.assigned_user_id
+     LEFT JOIN users su      ON su.user_id      = a.supervisor_id
+     LEFT JOIN targets t     ON t.target_id     = a.target_id
+     LEFT JOIN objectives ob ON ob.objective_id = t.objective_id
      WHERE ${where} ORDER BY a.created_at DESC LIMIT ? OFFSET ?`,
     [...params, l, offset]
   );

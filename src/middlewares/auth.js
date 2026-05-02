@@ -1,13 +1,14 @@
-const passport = require('passport');
+const passport   = require('passport');
 const httpStatus = require('http-status');
-const ApiError = require('../utils/ApiError');
+const ApiError   = require('../utils/ApiError');
 const { roleRights } = require('../config/roles');
 
-// Routes allowed even when must_change_password = 1
+// Paths allowed even when must_change_password = 1
+// Use suffix matching — works regardless of /v1 or /api prefix
 const PASSWORD_CHANGE_WHITELIST = [
-  '/v1/auth/change-password',
-  '/v1/auth/logout',
-  '/v1/auth/me',
+  '/auth/change-password',
+  '/auth/logout',
+  '/auth/me',
 ];
 
 const verifyCallback = (req, resolve, reject, requiredRights) => async (err, user, info) => {
@@ -18,13 +19,14 @@ const verifyCallback = (req, resolve, reject, requiredRights) => async (err, use
 
   // Force password change before any other action
   if (user.must_change_password) {
-    const isWhitelisted = PASSWORD_CHANGE_WHITELIST.some((path) =>
-      req.path === path || req.originalUrl.startsWith(path)
+    const url = req.originalUrl.split('?')[0]; // strip query string
+    const isWhitelisted = PASSWORD_CHANGE_WHITELIST.some((suffix) =>
+      url.endsWith(suffix) || url.includes(suffix)
     );
     if (!isWhitelisted) {
       return reject(new ApiError(
         httpStatus.FORBIDDEN,
-        'You must change your password before continuing. POST /v1/auth/change-password'
+        'You must change your password before continuing. POST /api/auth/change-password'
       ));
     }
   }

@@ -84,3 +84,21 @@ const deleteDocument = async (id) => {
 };
 
 module.exports = { createDocument, addDocumentVersion, getDocumentsByProject, getDocumentById, deleteDocument };
+
+const getDocumentsByActivity = async (activityId) => {
+  return query(
+    `SELECT d.*, dv.file_path, dv.mime_type, dv.size, dv.version_number,
+            u.full_name AS uploaded_by_name
+     FROM documents d
+     JOIN document_versions dv ON dv.document_id = d.document_id
+       AND dv.version_number = (
+         SELECT MAX(v2.version_number) FROM document_versions v2 WHERE v2.document_id = d.document_id
+       )
+     LEFT JOIN users u ON u.user_id = dv.uploaded_by
+     WHERE d.activity_id = ?
+     ORDER BY d.created_at DESC`,
+    [activityId]
+  );
+};
+
+module.exports = Object.assign(module.exports || {}, { getDocumentsByActivity });
