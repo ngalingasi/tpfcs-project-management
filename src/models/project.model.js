@@ -208,17 +208,6 @@ const getProjectById = async (id, conn = null) => {
 };
 
 const updateProject = async (id, body, updatorId) => {
-  // Handle financing update separately if provided
-  if (body.financing !== undefined) {
-    await query('DELETE FROM project_financing WHERE project_id = ?', [id]);
-    for (const f of (body.financing ?? [])) {
-      await query(
-        `INSERT INTO project_financing (project_id, fund_source, financial_modality, financial_category, financier, committed_amount, exchange_rate, currency, amount_tzs) VALUES (?,?,?,?,?,?,?,?,?)`,
-        [id, f.fund_source ?? null, f.financial_modality ?? null, f.financial_category ?? null, f.financier ?? null, f.committed_amount ?? null, f.exchange_rate ?? null, f.currency ?? 'TZS', f.committed_amount && f.exchange_rate ? f.committed_amount * f.exchange_rate : null]
-      );
-    }
-  }
-
   const allowed = [
     'name', 'programme_name', 'project_nature', 'sector_id', 'sub_sector',
     'start_date', 'end_date', 'fund_structure',
@@ -230,11 +219,97 @@ const updateProject = async (id, body, updatorId) => {
     'project_manager_id',
   ];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
-  // Allow financing-only updates (no scalar fields required if financing was updated)
-  if (!fields.length && body.financing === undefined) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
-  const setClauses = fields.map((f) => `${f} = ?`).join(', ');
-  const values     = fields.map((f) => body[f]);
-  await query(`UPDATE projects SET ${setClauses} WHERE project_id = ?`, [...values, id]);
+  const hasRelations = ['regions','implementers','coordinators','employment','financing']
+    .some(k => body[k] !== undefined);
+
+  if (!fields.length && !hasRelations) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
+  }
+
+  // Update scalar fields
+  if (fields.length) {
+    const setClauses = fields.map((f) => `${f} = ?`).join(', ');
+    const values     = fields.map((f) => body[f]);
+    await query(`UPDATE projects SET ${setClauses} WHERE project_id = ?`, [...values, id]);
+  }
+
+  // Regions
+  if (body.regions !== undefined) {
+    await query('DELETE FROM project_regions WHERE project_id = ?', [id]);
+    for (const r of (body.regions ?? [])) {
+      const regionId = typeof r === 'object' ? r.region_id : r;
+      await query(
+        'INSERT INTO project_regions (project_id, region_id, created_by) VALUES (?,?,?)',
+        [id, regionId, updatorId]
+      );
+    }
+  }
+
+  // Implementers
+  if (body.implementers !== undefined) {
+    await query('DELETE FROM project_implementers WHERE project_id = ?', [id]);
+    for (const impl of (body.implementers ?? [])) {
+      if (!impl.implementer_id) continue;
+      await query(
+        `INSERT INTO project_implementers
+           (project_id, implementer_id, vote_name, vote_code, sub_vote_code,
+            sub_vote_name, cost_center, involvement, role_type, created_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        [id, impl.implementer_id, impl.vote_name ?? null, impl.vote_code ?? null,
+         impl.sub_vote_code ?? null, impl.sub_vote_name ?? null,
+         impl.cost_center ?? null, impl.involvement ?? null,
+         impl.role_type ?? 'implementer', updatorId]
+      );
+    }
+  }
+
+  // Coordinators
+  if (body.coordinators !== undefined) {
+    await query('DELETE FROM project_coordinators WHERE project_id = ?', [id]);
+    for (const coord of (body.coordinators ?? [])) {
+      if (!coord.full_name?.trim()) continue;
+      await query(
+        `INSERT INTO project_coordinators
+           (project_id, full_name, email, phone_number, address, created_by)
+         VALUES (?,?,?,?,?,?)`,
+        [id, coord.full_name, coord.email ?? null,
+         coord.phone_number ?? null, coord.address ?? null, updatorId]
+      );
+    }
+  }
+
+  // Employment
+  if (body.employment !== undefined) {
+    await query('DELETE FROM project_employment WHERE project_id = ?', [id]);
+    for (const emp of (body.employment ?? [])) {
+      if (!emp.category?.trim()) continue;
+      await query(
+        `INSERT INTO project_employment
+           (project_id, category, type, foreign_count, domestic_count)
+         VALUES (?,?,?,?,?)`,
+        [id, emp.category, emp.type ?? '', emp.foreign_count ?? 0, emp.domestic_count ?? 0]
+      );
+    }
+  }
+
+  // Financing
+  if (body.financing !== undefined) {
+    await query('DELETE FROM project_financing WHERE project_id = ?', [id]);
+    for (const f of (body.financing ?? [])) {
+      await query(
+        `INSERT INTO project_financing
+           (project_id, fund_source, financial_modality, financial_category, financier,
+            committed_amount, exchange_rate, currency, amount_tzs)
+         VALUES (?,?,?,?,?,?,?,?,?)`,
+        [id, f.fund_source ?? null, f.financial_modality ?? null,
+         f.financial_category ?? null, f.financier ?? null,
+         f.committed_amount ?? null, f.exchange_rate ?? null, f.currency ?? 'TZS',
+         f.committed_amount && f.exchange_rate
+           ? Number(f.committed_amount) * Number(f.exchange_rate) : null]
+      );
+    }
+  }
+
   return getProjectById(id);
 };
 

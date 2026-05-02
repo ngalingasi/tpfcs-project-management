@@ -51,13 +51,32 @@ export default function ActivityForm() {
   const [targets,          setTargets]          = useState<Target[]>([]);
   const [parentActivities, setParentActivities] = useState<{activity_id:number; name:string; status:string}[]>([]);
   const [loadingParents,   setLoadingParents]   = useState(false);
-  const [regions,  setRegions]  = useState<Region[]>([]);
+  const [projectRegions,   setProjectRegions]   = useState<Region[]>([]);
   const [users,    setUsers]    = useState<UserRecord[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  // When target changes, load project regions and parent activities
+  useEffect(() => {
+    if (!form.target_id) { setProjectRegions([]); return; }
+    // Find the project via the target's full name prefix stored in targets array
+    const t = targets.find(t => t.target_id === Number(form.target_id));
+    if (!t) return;
+    // Extract project id from the target name (format: "Project → Obj → Target")
+    // Better: get regions from the project associated with this target
+    // We stored full path in name, so find matching project from pRes
+    const selectedTarget = targets.find(tgt => tgt.target_id === Number(form.target_id)) as any;
+    if (selectedTarget?.project_regions?.length) {
+      // Use project's assigned regions
+      setProjectRegions(selectedTarget.project_regions);
+    } else {
+      // Fallback to all regions
+      lookupsApi.regions().then(r => setProjectRegions(r.data)).catch(() => {});
+    }
+  }, [form.target_id, targets]);
 
   // When target changes, load eligible parent activities for that target
   // (top-level only — no sub-activities, no cancelled/completed)
@@ -79,11 +98,7 @@ export default function ActivityForm() {
     const init = async () => {
       setLoading(true);
       try {
-        const [rRes, uRes] = await Promise.all([
-          lookupsApi.regions(),
-          usersApi.list({ limit: 200, status: 'active' }),
-        ]);
-        setRegions(rRes.data);
+        const uRes = await usersApi.list({ limit: 200, status: 'active' });
         setUsers(uRes.data.results);
 
         // Load all targets across all projects
@@ -96,7 +111,9 @@ export default function ActivityForm() {
             tRes.data.forEach(t => allTargets.push({
               ...t,
               name: `${project.name} → ${obj.title} → ${t.name}`,
-            }));
+              project_id: project.project_id,
+              project_regions: project.regions ?? [],
+            } as any));
           }
         }
         setTargets(allTargets);
@@ -278,7 +295,7 @@ export default function ActivityForm() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormSelect label="Region" value={form.region_id} onChange={e => set('region_id', e.target.value)}>
               <option value="">Select region...</option>
-              {regions.map(r => <option key={r.region_id} value={r.region_id}>{r.region_name}</option>)}
+              {projectRegions.map(r => <option key={r.region_id} value={r.region_id}>{r.region_name}</option>)}
             </FormSelect>
             <FormInput label="Council" value={form.council} onChange={e => set('council', e.target.value)} placeholder="Council name" />
             <FormInput label="Ward" value={form.ward} onChange={e => set('ward', e.target.value)} placeholder="Ward name" />

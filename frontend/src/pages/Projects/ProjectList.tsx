@@ -3,7 +3,6 @@ import { Link } from 'react-router';
 import PageBreadCrumb from '../../components/common/PageBreadCrumb';
 import { projectsApi } from '../../api';
 import type { Project, PaginatedResponse } from '../../types';
-import StatusBadge from '../../components/tpfcs/StatusBadge';
 
 export default function ProjectList() {
   const [data,    setData]    = useState<PaginatedResponse<Project> | null>(null);

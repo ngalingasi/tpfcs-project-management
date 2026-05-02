@@ -10,7 +10,9 @@
     "start": "pm2 start ecosystem.config.json --no-daemon",
     "dev": "cross-env NODE_ENV=development nodemon src/index.js",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "build:dashboard": "cd ../tpfcs-dashboard && npm run build && mkdir -p ../tpfcs-projects/public/dashboard && cp -r dist/* ../tpfcs-projects/public/dashboard/",
+    "start:prod": "NODE_ENV=production node src/index.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

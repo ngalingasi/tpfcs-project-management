@@ -62,6 +62,7 @@ export interface Implementer {
 
 // ── Project ───────────────────────────────────────────────────────────────────
 export interface ProjectFinancing {
+  _key?: string;
   financing_id?: number;
   project_id?: number;
   fund_source?: string;
@@ -75,6 +76,7 @@ export interface ProjectFinancing {
 }
 
 export interface ProjectCoordinator {
+  _key?: string;
   coordinator_id?: number;
   project_id?: number;
   full_name: string;
@@ -84,6 +86,7 @@ export interface ProjectCoordinator {
 }
 
 export interface ProjectEmployment {
+  _key?: string;
   employment_id?: number;
   project_id?: number;
   category: string;
@@ -97,7 +100,7 @@ export interface Project {
   name: string;
   programme_name?: string;
   project_nature?: string;
-  sector_id?: number;
+  sector_id?: number | null;
   sector_name?: string;
   sub_sector?: string;
   start_date?: string;
@@ -122,7 +125,7 @@ export interface Project {
   compensation?: string;
   has_land?: number;
   job_created_no?: string;
-  project_manager_id?: number;
+  project_manager_id?: number | null;
   project_manager_name?: string;
   created_at: string;
   // Relations
@@ -181,6 +184,8 @@ export type ActivityStatus = 'pending' | 'in_progress' | 'on_hold' | 'completed'
 
 export interface Activity {
   activity_id: number;
+  main_activity_id?: number | null;
+  global_id?: string | null;
   target_id: number;
   target_name?: string;
   region_id?: number;

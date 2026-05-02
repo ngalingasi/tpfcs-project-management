@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { projectsApi, activitiesApi, budgetApi } from '../../api';
-import type { Project, Activity, PaginatedResponse } from '../../types';
+import { projectsApi, activitiesApi } from '../../api';
+import type { Project, Activity } from '../../types';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import { useAuth } from '../../store/authStore';

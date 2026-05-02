@@ -12,7 +12,6 @@ export default function UserMetaCard() {
   const { user, updateUser } = useAuth();
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState(user?.full_name ?? '');
-  const [role,     setRole]     = useState(user?.role ?? '');
 
   // Avatar initials + colour
   const initials = (user?.full_name ?? 'U')
@@ -92,7 +91,7 @@ export default function UserMetaCard() {
             </div>
             <div>
               <Label>Role</Label>
-              <Input type="text" value={role} disabled className="opacity-60 cursor-not-allowed" />
+              <Input type="text" value={user?.role ?? ''} disabled className="opacity-60 cursor-not-allowed" />
             </div>
           </div>
           <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">

@@ -1,4 +1,3 @@
-import type { ActivityStatus } from '../../types';
 
 const STATUS_STYLES: Record<string, string> = {
   pending:     'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',

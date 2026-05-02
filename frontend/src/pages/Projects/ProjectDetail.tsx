@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, lookupsApi } from '../../api';
-import type { Project, Objective, Target, Activity, ProjectBudgetSummary, Region, Sector } from '../../types';
+import type { Project, Objective, Target, Activity, ProjectBudgetSummary } from '../../types';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import BulletList from '../../components/tpfcs/BulletList';
 import Modal from '../../components/tpfcs/Modal';
-import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
+import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
 
 type Tab = 'details' | 'objectives' | 'targets' | 'activities';
 
@@ -22,7 +22,7 @@ function ObjectiveForm({ projectId, onSaved, onClose }: { projectId: number; onS
     if (!form.title.trim()) { setError('Title is required'); return; }
     setSaving(true);
     try {
-      await objectivesApi.create({ ...form, project_id: projectId });
+      await objectivesApi.create({ ...form, project_id: projectId, priority: form.priority as 'low'|'medium'|'high', status: form.status as any });
       onSaved();
       onClose();
     } catch (err: any) {
@@ -68,7 +68,7 @@ function TargetForm({ objectives, onSaved, onClose }: { objectives: Objective[];
     if (!form.name.trim() || !form.objective_id || !form.target_value) { setError('Objective, name and target value are required'); return; }
     setSaving(true);
     try {
-      await targetsApi.create({ ...form, objective_id: Number(form.objective_id), target_value: Number(form.target_value) });
+      await targetsApi.create({ ...form, objective_id: Number(form.objective_id), target_value: Number(form.target_value), metric_type: form.metric_type as any, status: form.status as any });
       onSaved();
       onClose();
     } catch (err: any) {
@@ -175,7 +175,6 @@ export default function ProjectDetail() {
   const [targets,      setTargets]      = useState<Target[]>([]);
   const [activities,   setActivities]   = useState<Activity[]>([]);
   const [budget,       setBudget]       = useState<ProjectBudgetSummary | null>(null);
-  const [regions,      setRegions]      = useState<Region[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [tab,          setTab]          = useState<Tab>('details');
   const [modal,        setModal]        = useState<'objective' | 'target' | 'allocate' | null>(null);
@@ -184,14 +183,12 @@ export default function ProjectDetail() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, oRes, rRes] = await Promise.all([
+      const [pRes, oRes] = await Promise.all([
         projectsApi.get(pid),
         objectivesApi.listByProject(pid),
-        lookupsApi.regions(),
       ]);
       setProject(pRes.data);
       setObjectives(oRes.data);
-      setRegions(rRes.data);
       budgetApi.projectSummary(pid).then(r => setBudget(r.data)).catch(() => {});
 
       // Load targets across all objectives
@@ -313,11 +310,6 @@ export default function ProjectDetail() {
               { label: 'Life Span',            value: project.project_life_span ? `${project.project_life_span} years` : null },
               { label: 'Estimated Cost',       value: fmt(project.estimated_cost) },
               { label: 'Fund Structure',       value: project.fund_structure },
-              { label: 'Financial Modality',   value: project.financial_modality },
-              { label: 'Financial Category',   value: project.financial_category },
-              { label: 'Financier',            value: project.financier },
-              { label: 'Committed Amount',     value: project.committed_amount ? `${project.currency ?? ''} ${Number(project.committed_amount).toLocaleString()}` : null },
-              { label: 'Exchange Rate',        value: project.exchange_rate ? `1 ${project.currency} = TZS ${Number(project.exchange_rate).toLocaleString()}` : null },
               { label: 'Funding Source',       value: project.funding },
               { label: 'Cost Center',          value: project.cost_center },
               { label: 'Implementation',       value: project.implementation_modality },

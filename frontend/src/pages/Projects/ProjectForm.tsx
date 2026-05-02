@@ -32,6 +32,10 @@ function Row({ children, onRemove }: { children: React.ReactNode; onRemove: () =
   );
 }
 
+// Stable unique key generator — prevents React key collision on add/remove
+let _uid = 0;
+const uid = () => `r${++_uid}`;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const EMPTY_FORM = () => ({
@@ -130,22 +134,22 @@ export default function ProjectForm() {
     }));
 
   // Implementer helpers
-  const addImpl = () => setForm(f => ({ ...f, implementers: [...f.implementers, { implementer_id: '', vote_name: '', vote_code: '', sub_vote_code: '', sub_vote_name: '', cost_center: '', involvement: 'Lead', role_type: 'implementer' }] }));
+  const addImpl = () => setForm(f => ({ ...f, implementers: [...f.implementers, { _key: uid(), implementer_id: '', vote_name: '', vote_code: '', sub_vote_code: '', sub_vote_name: '', cost_center: '', involvement: 'Lead', role_type: 'implementer' }] }));
   const setImpl = (i: number, k: string, v: string) => setForm(f => { const a = [...f.implementers]; a[i] = { ...a[i], [k]: v }; return { ...f, implementers: a }; });
   const removeImpl = (i: number) => setForm(f => ({ ...f, implementers: f.implementers.filter((_, idx) => idx !== i) }));
 
   // Coordinator helpers
-  const addCoord = () => setForm(f => ({ ...f, coordinators: [...f.coordinators, { full_name: '', email: '', phone_number: '', address: '' }] }));
+  const addCoord = () => setForm(f => ({ ...f, coordinators: [...f.coordinators, { _key: uid(), full_name: '', email: '', phone_number: '', address: '' }] }));
   const setCoord = (i: number, k: string, v: string) => setForm(f => { const a = [...f.coordinators]; a[i] = { ...a[i], [k]: v }; return { ...f, coordinators: a }; });
   const removeCoord = (i: number) => setForm(f => ({ ...f, coordinators: f.coordinators.filter((_, idx) => idx !== i) }));
 
   // Employment helpers
-  const addEmp = () => setForm(f => ({ ...f, employment: [...f.employment, { category: '', type: '', foreign_count: 0, domestic_count: 0 }] }));
+  const addEmp = () => setForm(f => ({ ...f, employment: [...f.employment, { _key: uid(), category: '', type: '', foreign_count: 0, domestic_count: 0 }] }));
   const setEmp = (i: number, k: string, v: any) => setForm(f => { const a = [...f.employment]; a[i] = { ...a[i], [k]: v }; return { ...f, employment: a }; });
   const removeEmp = (i: number) => setForm(f => ({ ...f, employment: f.employment.filter((_, idx) => idx !== i) }));
 
   // Financing helpers
-  const addFin = () => setForm(f => ({ ...f, financing: [...f.financing, { fund_source: '', financial_modality: '', financial_category: '', financier: '', committed_amount: undefined, exchange_rate: undefined, currency: 'TZS' }] }));
+  const addFin = () => setForm(f => ({ ...f, financing: [...f.financing, { _key: uid(), fund_source: '', financial_modality: '', financial_category: '', financier: '', committed_amount: undefined, exchange_rate: undefined, currency: 'TZS' }] }));
   const setFin = (i: number, k: string, v: any) => setForm(f => { const a = [...f.financing]; a[i] = { ...a[i], [k]: v }; return { ...f, financing: a }; });
   const removeFin = (i: number) => setForm(f => ({ ...f, financing: f.financing.filter((_, idx) => idx !== i) }));
 
@@ -169,11 +173,11 @@ export default function ProjectForm() {
         })),
       };
       if (isEdit) {
-        await projectsApi.update(Number(id), payload);
+        await projectsApi.update(Number(id), payload as any);
         toast.success('Project updated', 'Changes saved successfully');
         navigate(`/projects/${id}`);
       } else {
-        const res = await projectsApi.create(payload);
+        const res = await projectsApi.create(payload as any);
         toast.success('Project created', res.data.name);
         navigate(`/projects/${res.data.project_id}`);
       }
@@ -258,7 +262,7 @@ export default function ProjectForm() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Financing Sources (add one row per financier)</p>
             <div className="space-y-3">
               {form.financing.map((fin, i) => (
-                <Row key={i} onRemove={() => removeFin(i)}>
+                <Row key={fin._key ?? fin.financing_id ?? i} onRemove={() => removeFin(i)}>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <FormInput label="Fund Source" value={fin.fund_source ?? ''} onChange={e => setFin(i, 'fund_source', e.target.value)} placeholder="e.g. Foreign" />
                     <FormInput label="Financial Modality" value={fin.financial_modality ?? ''} onChange={e => setFin(i, 'financial_modality', e.target.value)} placeholder="e.g. Concession Loan" />
@@ -345,7 +349,7 @@ export default function ProjectForm() {
         <Section title="Project Implementers">
           <div className="space-y-3">
             {form.implementers.map((impl, i) => (
-              <Row key={i} onRemove={() => removeImpl(i)}>
+              <Row key={impl._key ?? impl.implementer_id ?? i} onRemove={() => removeImpl(i)}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <FormSelect label="Implementer" value={impl.implementer_id} onChange={e => setImpl(i, 'implementer_id', e.target.value)}>
                     <option value="">Select...</option>
@@ -376,7 +380,7 @@ export default function ProjectForm() {
         <Section title="Project Coordinators">
           <div className="space-y-3">
             {form.coordinators.map((coord, i) => (
-              <Row key={i} onRemove={() => removeCoord(i)}>
+              <Row key={coord._key ?? coord.coordinator_id ?? i} onRemove={() => removeCoord(i)}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <FormInput label="Full Name" required value={coord.full_name} onChange={e => setCoord(i, 'full_name', e.target.value)} placeholder="e.g. John Doe" />
                   <FormInput label="Email" type="email" value={coord.email ?? ''} onChange={e => setCoord(i, 'email', e.target.value)} placeholder="e.g. john@tpfcs.go.tz" />
@@ -396,7 +400,7 @@ export default function ProjectForm() {
         <Section title="Employment Category">
           <div className="space-y-3">
             {form.employment.map((emp, i) => (
-              <Row key={i} onRemove={() => removeEmp(i)}>
+              <Row key={emp._key ?? emp.employment_id ?? i} onRemove={() => removeEmp(i)}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <FormInput label="Category" value={emp.category} onChange={e => setEmp(i, 'category', e.target.value)} placeholder="Direct Employment" />
                   <FormInput label="Type" value={emp.type} onChange={e => setEmp(i, 'type', e.target.value)} placeholder="Temporary / Permanent" />

@@ -7,6 +7,7 @@ import BudgetBar from '../../components/tpfcs/BudgetBar';
 import Modal from '../../components/tpfcs/Modal';
 import { FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
 import { useAuth } from '../../store/authStore';
+import { toast } from '../../components/tpfcs/Toast';
 import BackButton from '../../components/tpfcs/BackButton';
 
 // Status transition map (mirrors backend)
