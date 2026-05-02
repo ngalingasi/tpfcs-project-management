@@ -18,8 +18,10 @@ type SubItem = { name: string; path: string };
 type NavItem = { name: string; icon: React.ReactNode; path?: string; subItems?: SubItem[] };
 
 const NAV: NavItem[] = [
-  { name: "Dashboard",  icon: <Icon.Dashboard />,  path: "/" },
-  { name: "Analysis",   icon: <Icon.Analysis />,   path: "/analysis" },
+  { name: "Dashboard",  icon: <Icon.Dashboard />,  subItems: [
+    { name: "Overview",  path: "/" },
+    { name: "Analysis",  path: "/analysis" },
+  ]},
   { name: "Projects",   icon: <Icon.Projects />,   subItems: [{ name: "All Projects", path: "/projects" }, { name: "New Project", path: "/projects/new" }] },
   { name: "Activities", icon: <Icon.Activities />, path: "/activities" },
   { name: "Budget",     icon: <Icon.Budget />,     subItems: [{ name: "Revisions", path: "/budget/revisions" }] },
