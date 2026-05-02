@@ -5,10 +5,12 @@ import type { Project, Objective, Target, Activity, ProjectBudgetSummary } from 
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import BulletList from '../../components/tpfcs/BulletList';
+import FilePreview from '../../components/tpfcs/FilePreview';
+import { documentsApi } from '../../api';
 import Modal from '../../components/tpfcs/Modal';
 import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
 
-type Tab = 'details' | 'objectives' | 'targets' | 'activities';
+type Tab = 'details' | 'objectives' | 'targets' | 'activities' | 'documents';
 
 // ── Objective Form ────────────────────────────────────────────────────────────
 function ObjectiveForm({ projectId, onSaved, onClose }: { projectId: number; onSaved: () => void; onClose: () => void }) {
@@ -178,6 +180,9 @@ export default function ProjectDetail() {
   const [loading,      setLoading]      = useState(true);
   const [tab,          setTab]          = useState<Tab>('details');
   const [modal,        setModal]        = useState<'objective' | 'target' | 'allocate' | null>(null);
+  const [documents,     setDocuments]     = useState<any[]>([]);
+  const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string}|null>(null);
+  const [uploadingDoc,  setUploadingDoc]  = useState(false);
   const [allocateTarget, setAllocateTarget] = useState<Target | null>(null);
 
   const loadAll = useCallback(async () => {
@@ -190,6 +195,7 @@ export default function ProjectDetail() {
       setProject(pRes.data);
       setObjectives(oRes.data);
       budgetApi.projectSummary(pid).then(r => setBudget(r.data)).catch(() => {});
+      documentsApi.listByProject(pid).then(r => setDocuments(r.data)).catch(() => {});
 
       // Load targets across all objectives
       const allTargets: Target[] = [];
@@ -220,6 +226,15 @@ export default function ProjectDetail() {
     { key: 'targets',    label: 'Targets',    count: targets.length },
     { key: 'activities', label: 'Activities', count: activities.length },
   ];
+
+
+  const fileUrl = (doc: any) => {
+    const base = (import.meta.env.VITE_API_URL ?? '').replace('/api', '');
+    const filePath = doc.file_path ?? '';
+    // file_path stored as "uploads/filename.pdf" or just "filename.pdf"
+    const filename = filePath.includes('/') ? filePath.split('/').pop() : filePath;
+    return `${base}/uploads/${filename}`;
+  };
 
   if (loading) return (
     <div className="p-6 space-y-4 animate-pulse">
@@ -559,14 +574,15 @@ export default function ProjectDetail() {
                   </div>
                   <StatusBadge status={t.status} />
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-xs mb-3">
+                <div className="grid grid-cols-4 gap-3 text-xs mb-3">
                   <div><p className="text-gray-400">Target</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.target_value} {t.unit}</p></div>
                   <div><p className="text-gray-400">Current</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.current_value} {t.unit}</p></div>
+                  <div><p className="text-gray-400">Activities</p><p className="font-medium text-gray-700 dark:text-gray-300">{activities.filter(a => a.target_id === t.target_id).length}</p></div>
                   <div>
                     <p className="text-gray-400">Budget</p>
                     <div className="flex items-center gap-2">
                       <p className={`font-medium ${t.allocated_budget > 0 ? 'text-gray-700 dark:text-gray-300' : 'text-orange-500 dark:text-orange-400'}`}>
-                        {t.allocated_budget > 0 ? `TZS ${Number(t.allocated_budget).toLocaleString()}` : '⚠ Not allocated'}
+                        {t.allocated_budget > 0 ? `TZS ${Number(t.allocated_budget).toLocaleString()}` : '<svg className="w-3.5 h-3.5 inline-block flex-shrink-0 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> Not allocated'}
                       </p>
                       <button
                         onClick={() => { setAllocateTarget(t); setModal('allocate'); }}
@@ -608,9 +624,9 @@ export default function ProjectDetail() {
                     <StatusBadge status={a.status} />
                   </div>
                   <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap">
-                    {a.region_name && <span>📍 {a.region_name}</span>}
-                    {a.assigned_user_name && <span>👤 {a.assigned_user_name}</span>}
-                    {a.council && <span>🏛 {a.council}</span>}
+                    {a.region_name && <span><svg className="w-3 h-3 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> {a.region_name}</span>}
+                    {a.assigned_user_name && <span><svg className="w-3 h-3 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {a.assigned_user_name}</span>}
+                    {a.council && <span><svg className="w-3 h-3 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg> {a.council}</span>}
                   </div>
                 </div>
                 <Link to={`/activities/${a.activity_id}`}
@@ -621,10 +637,91 @@ export default function ProjectDetail() {
                 <div><p className="text-gray-400">Progress</p><p className="font-medium text-gray-700 dark:text-gray-300">{a.progress}%</p></div>
                 <div><p className="text-gray-400">End Date</p><p className="font-medium text-gray-700 dark:text-gray-300">{dt(a.end_date)}</p></div>
               </div>
-              <BudgetBar value={a.progress} />
+              <BudgetBar value={a.progress} status={a.status} />
             </div>
           ))}
         </div>
+      )}
+
+      {/* ── DOCUMENTS TAB ── */}
+      {tab === 'documents' && (
+        <div className="space-y-4">
+          {/* Upload */}
+          <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 text-center">
+            <label className="cursor-pointer block">
+              <input type="file" className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadingDoc(true);
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  fd.append('name', file.name);
+                  try {
+                    const res = await documentsApi.upload(pid, fd);
+                    setDocuments(prev => [res.data, ...prev]);
+                  } catch { /* silent */ }
+                  finally { setUploadingDoc(false); e.target.value = ''; }
+                }}
+              />
+              {uploadingDoc ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                  <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                  Uploading...
+                </div>
+              ) : (
+                <>
+                  <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload project document</p>
+                  <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOCX up to 50MB</p>
+                </>
+              )}
+            </label>
+          </div>
+
+          {/* Document list */}
+          {documents.length === 0 ? (
+            <p className="text-center py-8 text-sm text-gray-400">No documents uploaded yet</p>
+          ) : (
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+              {documents.map((doc: any) => (
+                <div key={doc.document_id}
+                  className="flex items-center gap-4 px-4 py-3 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{doc.name}</p>
+                    <p className="text-xs text-gray-400">
+                      {doc.uploaded_by_name ?? doc.created_by}
+                      {doc.size ? ` · ${(doc.size / 1024).toFixed(1)} KB` : ''}
+                      {doc.version_number ? ` · v${doc.version_number}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => setPreviewDoc({ url: fileUrl(doc), name: doc.name, mime: doc.mime_type })}
+                      className="px-2.5 py-1 text-xs text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-md"
+                    >Preview</button>
+                    <a href={fileUrl(doc)} download={doc.name}
+                      className="px-2.5 py-1 text-xs text-gray-500 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">
+                      Download
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* File Preview */}
+      {previewDoc && (
+        <FilePreview url={previewDoc.url} name={previewDoc.name} mimeType={previewDoc.mime} onClose={() => setPreviewDoc(null)} />
       )}
 
       {/* ── Modals ── */}

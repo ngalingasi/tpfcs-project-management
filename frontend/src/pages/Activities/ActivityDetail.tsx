@@ -9,6 +9,7 @@ import { FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
 import { useAuth } from '../../store/authStore';
 import { toast } from '../../components/tpfcs/Toast';
 import BackButton from '../../components/tpfcs/BackButton';
+import FilePreview from '../../components/tpfcs/FilePreview';
 
 // Status transition map (mirrors backend)
 const TRANSITIONS: Record<ActivityStatus, ActivityStatus[]> = {
@@ -34,6 +35,7 @@ export default function ActivityDetail() {
   const [documents,     setDocuments]     = useState<any[]>([]);
   const [commentText,   setCommentText]   = useState('');
   const [addingComment, setAddingComment] = useState(false);
+  const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string}|null>(null);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState<'details' | 'history' | 'budget' | 'sub' | 'comments' | 'documents'>('details');
 
@@ -113,6 +115,14 @@ export default function ActivityDetail() {
   const isTerminal = activity && (activity.status === 'completed' || activity.status === 'cancelled');
   const allowedNext = activity ? (TRANSITIONS[activity.status] ?? []) : [];
 
+
+  const fileUrl = (doc: any) => {
+    const base = (import.meta.env.VITE_API_URL ?? '').replace('/api', '');
+    const filePath = doc.file_path ?? '';
+    const filename = filePath.includes('/') ? filePath.split('/').pop() : filePath;
+    return `${base}/uploads/${filename}`;
+  };
+
   if (loading) return (
     <div className="space-y-4 animate-pulse">
       <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-64" />
@@ -173,7 +183,7 @@ export default function ActivityDetail() {
           <div><p className="text-xs text-gray-400">Start</p><p className="font-medium text-gray-700 dark:text-gray-300">{dt(activity.start_date)}</p></div>
           <div><p className="text-xs text-gray-400">End</p><p className="font-medium text-gray-700 dark:text-gray-300">{dt(activity.end_date)}</p></div>
         </div>
-        <BudgetBar value={activity.progress} />
+        <BudgetBar value={activity.progress} status={activity.status} />
       </div>
 
       {/* Tabs */}
@@ -328,7 +338,7 @@ export default function ActivityDetail() {
                 <div><p className="text-gray-400">Progress</p><p className="font-medium text-gray-700 dark:text-gray-300">{s.progress}%</p></div>
                 <div><p className="text-gray-400">Status</p><p className="font-medium text-gray-700 dark:text-gray-300 capitalize">{s.status.replace('_',' ')}</p></div>
               </div>
-              <BudgetBar value={s.progress} />
+              <BudgetBar value={s.progress} status={s.status} />
             </div>
           ))}
         </div>
@@ -441,16 +451,34 @@ export default function ActivityDetail() {
                     <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{doc.name}</p>
                     <p className="text-xs text-gray-400">{doc.uploaded_by_name} · v{doc.version_number} · {doc.size ? `${(doc.size/1024).toFixed(1)} KB` : ''}</p>
                   </div>
-                  <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') ?? ''}/uploads/${doc.file_path?.split('/').pop()}`}
-                    target="_blank" rel="noreferrer"
-                    className="text-xs text-brand-500 hover:text-brand-600 flex-shrink-0">
-                    Download
-                  </a>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => {
+                        setPreviewDoc({ url: fileUrl(doc), name: doc.name, mime: doc.mime_type });
+                      }}
+                      className="text-xs text-brand-500 hover:text-brand-600"
+                    >Preview</button>
+                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                    <a href={fileUrl(doc)} download={doc.name}
+                      className="text-xs text-gray-500 hover:text-brand-600">
+                      Download
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+      )}
+
+      {/* File Preview Modal */}
+      {previewDoc && (
+        <FilePreview
+          url={previewDoc.url}
+          name={previewDoc.name}
+          mimeType={previewDoc.mime}
+          onClose={() => setPreviewDoc(null)}
+        />
       )}
 
       {/* Update Status Modal */}

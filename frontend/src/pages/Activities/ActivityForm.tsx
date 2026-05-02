@@ -104,15 +104,23 @@ export default function ActivityForm() {
         // Load all targets across all projects
         const pRes = await projectsApi.list({ limit: 100 });
         const allTargets: Target[] = [];
+        const projectRegionsMap: Record<number, any[]> = {};
         for (const project of pRes.data.results) {
           const oRes = await objectivesApi.listByProject(project.project_id);
           for (const obj of oRes.data) {
             const tRes = await targetsApi.listByObjective(obj.objective_id);
-            tRes.data.forEach(t => allTargets.push({
+            // Fetch project regions if not already fetched
+          if (!projectRegionsMap[project.project_id]) {
+            try {
+              const projRes = await projectsApi.get(project.project_id);
+              projectRegionsMap[project.project_id] = projRes.data.regions ?? [];
+            } catch { projectRegionsMap[project.project_id] = []; }
+          }
+          tRes.data.forEach(t => allTargets.push({
               ...t,
               name: `${project.name} → ${obj.title} → ${t.name}`,
               project_id: project.project_id,
-              project_regions: project.regions ?? [],
+              project_regions: projectRegionsMap[project.project_id],
             } as any));
           }
         }
@@ -239,7 +247,7 @@ export default function ActivityForm() {
             <option value="">Select target...</option>
             {targets.map(t => (
               <option key={t.target_id} value={t.target_id}>
-                {t.name}{t.allocated_budget > 0 ? ` (TZS ${Number(t.allocated_budget).toLocaleString()})` : ' ⚠ no budget'}
+                {t.name}{t.allocated_budget > 0 ? ` (TZS ${Number(t.allocated_budget).toLocaleString()})` : ' — no budget'}
               </option>
             ))}
           </FormSelect>
@@ -249,12 +257,12 @@ export default function ActivityForm() {
             if (!t) return null;
             if (t.allocated_budget <= 0) return (
               <p className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 p-2 rounded-lg">
-                ⚠ This target has no budget allocated. Go to the project Targets tab and allocate budget first.
+                <svg className="w-3.5 h-3.5 inline-block flex-shrink-0 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> This target has no budget allocated. Go to the project Targets tab and allocate budget first.
               </p>
             );
             return (
               <p className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10 p-2 rounded-lg">
-                ✓ Available budget: TZS {Number(t.allocated_budget).toLocaleString()}
+                <svg className="w-3.5 h-3.5 inline-block flex-shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Available budget: TZS {Number(t.allocated_budget).toLocaleString()}
               </p>
             );
           })()}

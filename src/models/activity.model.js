@@ -167,7 +167,7 @@ const updateActivity = async (id, body, updatorId) => {
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
   if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
 
-  return transaction(async (conn) => {
+  const result = await transaction(async (conn) => {
     const setClauses = fields.map((f) => `${f} = ?`).join(', ');
     const values = fields.map((f) => body[f] === undefined ? null : body[f]);
     await conn.query(`UPDATE activities SET ${setClauses} WHERE activity_id = ?`, [...values, id]);
@@ -185,8 +185,17 @@ const updateActivity = async (id, body, updatorId) => {
       await syncTargetSpent(current.target_id, conn);
     }
 
-    return getActivityById(id);
+    return getActivityById(id, conn);
   });
+
+  // Auto-update target status AFTER transaction commits — runs on committed data
+  if (body.status && body.status !== current.status) {
+    await autoUpdateTargetStatus(current.target_id).catch((e) => {
+      console.error('autoUpdateTargetStatus failed:', e.message);
+    });
+  }
+
+  return result;
 };
 
 /**
@@ -231,7 +240,57 @@ const getSubActivities = async (parentId) => {
   );
 };
 
+
+/**
+ * Auto-update target status based on its activities
+ * Rules:
+ *   - If deadline passed + target not achieved → Missed
+ *   - If >= 30% activities are overdue/delayed → At Risk
+ *   - If all activities completed → Achieved
+ *   - Otherwise → On Track
+ */
+const autoUpdateTargetStatus = async (targetId) => {
+  const target = await query('SELECT * FROM targets WHERE target_id = ?', [targetId]);
+  if (!target.length) return;
+  const t = target[0];
+
+  // Already manually set to achieved/missed — don't override
+  if (t.status === 'achieved') return;
+
+  const acts = await query(
+    `SELECT status, end_date FROM activities WHERE target_id = ? AND main_activity_id IS NULL`,
+    [targetId]
+  );
+  if (!acts.length) return;
+
+  const now      = new Date();
+  const total    = acts.length;
+  const completed = acts.filter(a => a.status === 'completed').length;
+  const overdue  = acts.filter(a => a.status === 'overdue').length;
+  const cancelled = acts.filter(a => a.status === 'cancelled').length;
+  const active   = total - cancelled;
+  const deadlinePassed = t.deadline && new Date(t.deadline) < now;
+
+  let newStatus = t.status; // keep current by default
+
+  if (deadlinePassed && completed < active) {
+    newStatus = 'missed';
+  } else if (active > 0 && completed === active) {
+    newStatus = 'achieved';
+  } else if (active > 0 && overdue / active >= 0.3) {
+    // 30%+ activities overdue → at risk
+    newStatus = 'at_risk';
+  } else if (t.status === 'at_risk' && overdue / active < 0.3) {
+    // Recovered
+    newStatus = 'on_track';
+  }
+
+  if (newStatus !== t.status) {
+    await query('UPDATE targets SET status = ? WHERE target_id = ?', [newStatus, targetId]);
+  }
+};
+
 module.exports = {
   createActivity, getActivities, getActivityById, updateActivity,
-  deleteActivity, getActivityStatusHistory, getSubActivities,
+  deleteActivity, getActivityStatusHistory, getSubActivities, autoUpdateTargetStatus,
 };

@@ -82,9 +82,9 @@ function ActivityCard({ a }: { a: Activity }) {
               <StatusBadge status={a.status} />
             </div>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
-              {a.target_name  && <span>🎯 {a.target_name}</span>}
-              {a.region_name  && <span>📍 {a.region_name}</span>}
-              {a.assigned_user_name && <span>👤 {a.assigned_user_name}</span>}
+              {a.target_name  && <span><svg className="w-3 h-3 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 2v3m0 14v3M2 12h3m14 0h3" /></svg> {a.target_name}</span>}
+              {a.region_name  && <span><svg className="w-3 h-3 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> {a.region_name}</span>}
+              {a.assigned_user_name && <span><svg className="w-3 h-3 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {a.assigned_user_name}</span>}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -118,7 +118,7 @@ function ActivityCard({ a }: { a: Activity }) {
           <div><p className="text-gray-400">End Date</p><p className="font-medium text-gray-700 dark:text-gray-300">{dt(a.end_date)}</p></div>
         </div>
         <div className="mt-2">
-          <BudgetBar value={a.progress} />
+          <BudgetBar value={a.progress} status={a.status} />
         </div>
       </div>
 
