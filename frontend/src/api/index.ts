@@ -73,6 +73,16 @@ export const activitiesApi = {
     client.post(`/activities/${id}/comments`, { comment }),
   deleteComment: (activityId: number, commentId: number) =>
     client.delete(`/activities/${activityId}/comments/${commentId}`),
+  getPayments: (id: number) =>
+    client.get(`/activities/${id}/payments`),
+  getPaymentSummary: (id: number) =>
+    client.get(`/activities/${id}/payments/summary`),
+  createPayment: (id: number, data: FormData) =>
+    client.post(`/activities/${id}/payments`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  updatePaymentStatus: (activityId: number, paymentId: number, status: string) =>
+    client.patch(`/activities/${activityId}/payments/${paymentId}/status`, { status }),
+  deletePayment: (activityId: number, paymentId: number) =>
+    client.delete(`/activities/${activityId}/payments/${paymentId}`),
   getStatuses: () =>
     client.get<{ statuses: string[]; transitions: Record<string, string[]> }>('/activities/meta/statuses'),
 };

@@ -36,8 +36,14 @@ export default function ActivityDetail() {
   const [commentText,   setCommentText]   = useState('');
   const [addingComment, setAddingComment] = useState(false);
   const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string}|null>(null);
+  const [payments,      setPayments]      = useState<any[]>([]);
+  const [paySummary,    setPaySummary]    = useState<any>(null);
+  const [showPayForm,   setShowPayForm]   = useState(false);
+  const [payForm,       setPayForm]       = useState({ amount: '', payment_date: new Date().toISOString().slice(0,10), payment_method: '', reference_no: '', payee: '', description: '', status: 'pending' });
+  const [payFile,       setPayFile]       = useState<File | null>(null);
+  const [savingPay,     setSavingPay]     = useState(false);
   const [loading,    setLoading]    = useState(true);
-  const [tab,        setTab]        = useState<'details' | 'history' | 'budget' | 'sub' | 'comments' | 'documents'>('details');
+  const [tab,        setTab]        = useState<'details' | 'history' | 'budget' | 'sub' | 'comments' | 'documents' | 'payments'>('details');
 
   // Modals
   const [statusModal,   setStatusModal]   = useState(false);
@@ -71,6 +77,10 @@ export default function ActivityDetail() {
         .then(r => setSubActivities(r.data)).catch(() => {});
       activitiesApi.getComments(aid)
         .then(r => setComments(r.data)).catch(() => {});
+      activitiesApi.getPayments(aid)
+        .then(r => setPayments(r.data)).catch(() => {});
+      activitiesApi.getPaymentSummary(aid)
+        .then(r => setPaySummary(r.data)).catch(() => {});
       activitiesApi.getDocuments(aid)
         .then(r => setDocuments(r.data)).catch(() => {});
     } finally { setLoading(false); }
@@ -195,6 +205,7 @@ export default function ActivityDetail() {
       { key: 'sub',       label: `Sub-Activities (${subActivities.length})` },
       { key: 'comments',  label: `Comments (${comments.length})` },
       { key: 'documents', label: `Documents (${documents.length})` },
+      { key: 'payments',  label: `Payments (${payments.length})` },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
@@ -463,6 +474,242 @@ export default function ActivityDetail() {
                       className="text-xs text-gray-500 hover:text-brand-600">
                       Download
                     </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PAYMENTS TAB ── */}
+      {tab === 'payments' && (
+        <div className="space-y-4">
+
+          {/* Budget summary bar */}
+          {paySummary && (
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                {[
+                  { label: 'Budget', value: paySummary.effective_budget, color: 'text-gray-800 dark:text-white' },
+                  { label: 'Paid',   value: paySummary.total_paid,       color: 'text-green-600 dark:text-green-400' },
+                  { label: 'Pending',value: paySummary.pending_amount,   color: 'text-orange-600 dark:text-orange-400' },
+                  { label: 'Available',value: paySummary.available,      color: paySummary.available < 0 ? 'text-red-600 dark:text-red-400' : 'text-brand-600 dark:text-brand-400' },
+                ].map(m => (
+                  <div key={m.label}>
+                    <p className="text-xs text-gray-400 mb-0.5">{m.label}</p>
+                    <p className={`text-sm font-semibold ${m.color}`}>TZS {Number(m.value).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="w-full h-2.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(paySummary.utilization_pct, 100)}%`,
+                    background: paySummary.utilization_pct >= 100 ? '#E24B4A' : paySummary.utilization_pct >= 80 ? '#BA7517' : '#1D9E75',
+                  }} />
+              </div>
+              <p className="text-xs text-gray-400 mt-1 text-right">{paySummary.utilization_pct}% utilised</p>
+            </div>
+          )}
+
+          {/* Record payment button (PM/admin) */}
+          {(user?.role === 'admin' || user?.role === 'manager') && !showPayForm && (
+            <div className="flex justify-end">
+              <button onClick={() => setShowPayForm(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-500 text-white rounded-lg hover:bg-brand-600">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Record Payment
+              </button>
+            </div>
+          )}
+
+          {/* Payment form */}
+          {showPayForm && (
+            <div className="rounded-xl border border-brand-200 dark:border-brand-500/30 bg-white dark:bg-gray-900 p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Record New Payment</h3>
+                <button onClick={() => setShowPayForm(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { label: 'Amount (TZS)', key: 'amount', type: 'number', required: true, placeholder: '500000' },
+                  { label: 'Payment Date', key: 'payment_date', type: 'date', required: true },
+                  { label: 'Payee', key: 'payee', placeholder: 'Contractor / Supplier name' },
+                  { label: 'Payment Method', key: 'payment_method', placeholder: 'Bank Transfer, Cheque...' },
+                  { label: 'Reference / Cheque No', key: 'reference_no', placeholder: 'TXN-001' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                      {f.label}{f.required && <span className="text-red-500 ml-0.5">*</span>}
+                    </label>
+                    <input type={f.type ?? 'text'} value={(payForm as any)[f.key]}
+                      onChange={e => setPayForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder}
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-brand-400"
+                    />
+                  </div>
+                ))}
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Status</label>
+                  <select value={payForm.status} onChange={e => setPayForm(p => ({ ...p, status: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-brand-400">
+                    <option value="pending">Pending Approval</option>
+                    <option value="approved">Approved</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Description</label>
+                <textarea rows={2} value={payForm.description}
+                  onChange={e => setPayForm(p => ({ ...p, description: e.target.value }))}
+                  placeholder="Payment details..."
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-brand-400 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                  Evidence / Receipt (optional)
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 px-3 py-2 text-xs text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                    Attach file
+                    <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={e => setPayFile(e.target.files?.[0] ?? null)} />
+                  </label>
+                  {payFile && <span className="text-xs text-brand-500 truncate max-w-[160px]">{payFile.name}</span>}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setShowPayForm(false)} type="button"
+                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-400">Cancel</button>
+                <button type="button" disabled={savingPay}
+                  onClick={async () => {
+                    if (!payForm.amount || !payForm.payment_date) return;
+                    setSavingPay(true);
+                    try {
+                      const fd = new FormData();
+                      // Append fields explicitly — amount must be a clean number string
+                      fd.append('amount',         String(parseFloat(payForm.amount)));
+                      fd.append('payment_date',   payForm.payment_date);
+                      fd.append('status',         payForm.status);
+                      if (payForm.payment_method) fd.append('payment_method', payForm.payment_method);
+                      if (payForm.reference_no)   fd.append('reference_no',   payForm.reference_no);
+                      if (payForm.payee)           fd.append('payee',          payForm.payee);
+                      if (payForm.description)     fd.append('description',    payForm.description);
+                      if (payFile) fd.append('evidence', payFile);
+                      const res = await activitiesApi.createPayment(aid, fd);
+                      setPayments(prev => [res.data, ...prev]);
+                      // Refresh summary
+                      const s = await activitiesApi.getPaymentSummary(aid);
+                      setPaySummary(s.data);
+                      setShowPayForm(false);
+                      setPayForm({ amount: '', payment_date: new Date().toISOString().slice(0,10), payment_method: '', reference_no: '', payee: '', description: '', status: 'pending' });
+                      setPayFile(null);
+                      toast.success('Payment recorded');
+                    } catch (err: any) {
+                      toast.error('Failed', err?.response?.data?.message ?? 'Could not record payment');
+                    } finally { setSavingPay(false); }
+                  }}
+                  className="px-5 py-2 text-sm font-medium bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50">
+                  {savingPay ? 'Saving...' : 'Record Payment'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Payments list */}
+          {payments.length === 0 ? (
+            <p className="text-center py-10 text-sm text-gray-400">No payments recorded yet</p>
+          ) : (
+            <div className="space-y-2">
+              {payments.map((p: any) => (
+                <div key={p.payment_id}
+                  className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-base font-bold text-gray-800 dark:text-white">
+                          TZS {Number(p.amount).toLocaleString()}
+                        </span>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                          p.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                          : p.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                          : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400'
+                        }`}>{p.status}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {new Date(p.payment_date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}
+                        {p.payee && ` · ${p.payee}`}
+                        {p.payment_method && ` · ${p.payment_method}`}
+                        {p.reference_no && ` · Ref: ${p.reference_no}`}
+                      </p>
+                      {p.description && <p className="text-xs text-gray-400 mt-0.5 truncate">{p.description}</p>}
+                      <p className="text-xs text-gray-400 mt-0.5">By {p.created_by_name}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* Evidence preview */}
+                      {p.evidence_path && (
+                        <button
+                          onClick={() => {
+                            const base = (import.meta.env.VITE_API_URL ?? '').replace('/api', '');
+                            const filename = p.evidence_path.split('/').pop();
+                            setPreviewDoc({ url: `${base}/uploads/${filename}`, name: p.evidence_name ?? filename });
+                          }}
+                          className="px-2.5 py-1 text-xs text-brand-500 hover:text-brand-600 border border-brand-200 dark:border-brand-500/30 rounded-md"
+                        >Receipt</button>
+                      )}
+                      {/* Approve/Reject (PM/admin only) */}
+                      {(user?.role === 'admin' || user?.role === 'manager') && p.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await activitiesApi.updatePaymentStatus(aid, p.payment_id, 'approved');
+                                setPayments(prev => prev.map(x => x.payment_id === p.payment_id ? res.data : x));
+                                const s = await activitiesApi.getPaymentSummary(aid);
+                                setPaySummary(s.data);
+                                toast.success('Payment approved');
+                              } catch (err: any) { toast.error('Failed', err?.response?.data?.message); }
+                            }}
+                            className="px-2.5 py-1 text-xs text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-md"
+                          >Approve</button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await activitiesApi.updatePaymentStatus(aid, p.payment_id, 'rejected');
+                                setPayments(prev => prev.map(x => x.payment_id === p.payment_id ? res.data : x));
+                                toast.success('Payment rejected');
+                              } catch { toast.error('Failed', 'Could not reject'); }
+                            }}
+                            className="px-2.5 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-md"
+                          >Reject</button>
+                        </>
+                      )}
+                      {/* Delete (non-approved only) */}
+                      {p.status !== 'approved' && (user?.role === 'admin' || Number(p.created_by) === user?.user_id) && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await activitiesApi.deletePayment(aid, p.payment_id);
+                              setPayments(prev => prev.filter(x => x.payment_id !== p.payment_id));
+                              const s = await activitiesApi.getPaymentSummary(aid);
+                              setPaySummary(s.data);
+                            } catch { toast.error('Failed', 'Could not delete'); }
+                          }}
+                          className="px-2.5 py-1 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md"
+                        >Delete</button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
