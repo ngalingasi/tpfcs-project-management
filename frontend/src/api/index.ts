@@ -88,6 +88,11 @@ export const activitiesApi = {
 };
 
 // ── Budget ────────────────────────────────────────────────────────────────────
+export const financialApi = {
+  summary: (projectId?: number) =>
+    client.get('/financial/summary', { params: projectId ? { project_id: projectId } : {} }),
+};
+
 export const budgetApi = {
   projectSummary: (projectId: number) =>
     client.get<ProjectBudgetSummary>(`/budget/projects/${projectId}/summary`),

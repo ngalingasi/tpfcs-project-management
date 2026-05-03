@@ -82,6 +82,7 @@ const getActivities = async ({ page, limit, target_id, region_id, status, assign
   const activities = await query(
     `SELECT a.*,
             COALESCE(a.revised_amount, a.budgeted_amount) AS effective_budget,
+            COALESCE(a.revised_amount, a.budgeted_amount) - a.total_paid AS available_budget,
             r.region_name,
             au.full_name AS assigned_user_name,
             su.full_name AS supervisor_name,
