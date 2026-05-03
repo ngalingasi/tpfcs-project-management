@@ -65,12 +65,9 @@ export default function ActivityDetail() {
   const load = async () => {
     setLoading(true);
     try {
-      const [aRes, hRes] = await Promise.all([
-        activitiesApi.get(aid),
-        activitiesApi.getHistory(aid),
-      ]);
+      const aRes = await activitiesApi.get(aid);
       setActivity(aRes.data);
-      setHistory(hRes.data);
+      activitiesApi.getHistory(aid).then(r => setHistory(r.data)).catch(() => {});
       budgetApi.listRevisions({ activity_id: aid })
         .then(r => setRevisions(r.data)).catch(() => {});
       activitiesApi.getSubActivities(aid)
@@ -120,8 +117,9 @@ export default function ActivityDetail() {
     navigate('/activities');
   };
 
-  const fmt  = (n?: number | null) => n != null ? `TZS ${Number(n).toLocaleString()}` : '—';
+  const fmt  = (n?: number | string | null) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
   const dt   = (s?: string | null) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const effectiveBudget = (a: any) => a?.effective_budget ?? a?.revised_amount ?? a?.budgeted_amount ?? null;
   const isTerminal = activity && (activity.status === 'completed' || activity.status === 'cancelled');
   const allowedNext = activity ? (TRANSITIONS[activity.status] ?? []) : [];
 
@@ -187,11 +185,42 @@ export default function ActivityDetail() {
 
       {/* Progress */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3 text-sm">
-          <div><p className="text-xs text-gray-400">Progress</p><p className="font-bold text-2xl text-brand-600 dark:text-brand-400">{activity.progress}%</p></div>
-          <div><p className="text-xs text-gray-400">Budget</p><p className="font-semibold text-gray-800 dark:text-white">{fmt(activity.effective_budget)}</p></div>
-          <div><p className="text-xs text-gray-400">Start</p><p className="font-medium text-gray-700 dark:text-gray-300">{dt(activity.start_date)}</p></div>
-          <div><p className="text-xs text-gray-400">End</p><p className="font-medium text-gray-700 dark:text-gray-300">{dt(activity.end_date)}</p></div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-3 text-sm">
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Progress</p>
+            <p className="font-bold text-2xl text-brand-600 dark:text-brand-400">{activity.progress}%</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Budget</p>
+            <p className="font-semibold text-gray-800 dark:text-white">
+              {fmt(effectiveBudget(activity))}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Paid</p>
+            {(activity as any).total_paid > 0 ? (
+              <p className="font-semibold text-green-600 dark:text-green-400">{fmt((activity as any).total_paid)}</p>
+            ) : (
+              <p className="font-medium text-gray-400">—</p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Remaining</p>
+{(() => {
+              const eb  = effectiveBudget(activity);
+              if (eb == null) return <p className="font-medium text-gray-400">—</p>;
+              const rem = Number(eb) - Number((activity as any).total_paid || 0);
+              return <p className={`font-semibold ${rem < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-white'}`}>{fmt(rem)}</p>;
+            })()}
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Start</p>
+            <p className="font-medium text-gray-700 dark:text-gray-300">{dt(activity.start_date)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">End</p>
+            <p className="font-medium text-gray-700 dark:text-gray-300">{dt(activity.end_date)}</p>
+          </div>
         </div>
         <BudgetBar value={activity.progress} status={activity.status} />
       </div>
@@ -227,7 +256,7 @@ export default function ActivityDetail() {
             { label: 'Road',            value: activity.road_name },
             { label: 'Assigned To',     value: activity.assigned_user_name },
             { label: 'Supervisor',      value: activity.supervisor_name },
-            { label: 'Budgeted',        value: fmt(activity.budgeted_amount) },
+            { label: 'Budgeted',        value: fmt(activity.budgeted_amount ?? (activity as any).budgeted_amount) },
             { label: 'Revised Budget',  value: activity.revised_amount ? fmt(activity.revised_amount) : null },
             { label: 'Coordinates',     value: activity.latitude && activity.longitude ? `${activity.latitude}, ${activity.longitude}` : null },
           ].filter(i => i.value).map(i => (
@@ -277,7 +306,7 @@ export default function ActivityDetail() {
             {[
               { label: 'Original Budget',  value: fmt(activity.budgeted_amount) },
               { label: 'Revised Budget',   value: activity.revised_amount ? fmt(activity.revised_amount) : 'Not revised' },
-              { label: 'Effective Budget', value: fmt(activity.effective_budget) },
+              { label: 'Effective Budget', value: fmt(effectiveBudget(activity)) },
             ].map(i => (
               <div key={i.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                 <p className="text-xs text-gray-400 mb-1">{i.label}</p>
@@ -491,7 +520,7 @@ export default function ActivityDetail() {
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 {[
-                  { label: 'Budget', value: paySummary.effective_budget, color: 'text-gray-800 dark:text-white' },
+                  { label: 'Budget', value: paySummary.effective_budget ?? effectiveBudget(activity), color: 'text-gray-800 dark:text-white' },
                   { label: 'Paid',   value: paySummary.total_paid,       color: 'text-green-600 dark:text-green-400' },
                   { label: 'Pending',value: paySummary.pending_amount,   color: 'text-orange-600 dark:text-orange-400' },
                   { label: 'Available',value: paySummary.available,      color: paySummary.available < 0 ? 'text-red-600 dark:text-red-400' : 'text-brand-600 dark:text-brand-400' },
@@ -756,7 +785,7 @@ export default function ActivityDetail() {
         <form onSubmit={handleRevisionRequest} className="space-y-4">
           {revErr && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg">{revErr}</p>}
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Current effective budget: <strong className="text-gray-700 dark:text-gray-300">{fmt(activity.effective_budget)}</strong>
+            Current effective budget: <strong className="text-gray-700 dark:text-gray-300">{fmt(effectiveBudget(activity))}</strong>
           </p>
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Requested Amount (TZS) <span className="text-red-500">*</span></label>

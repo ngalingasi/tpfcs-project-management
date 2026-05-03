@@ -55,7 +55,7 @@ function SubActivities({ parentId }: { parentId: number }) {
 function ActivityCard({ a }: { a: Activity }) {
   const [expanded, setExpanded] = useState(false);
   const isSubActivity = !!a.main_activity_id;
-  const fmt = (n: number) => `TZS ${Number(n).toLocaleString()}`;
+  const fmt = (n: any) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
   const dt  = (s?: string) => s
     ? new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
     : '—';
@@ -112,10 +112,27 @@ function ActivityCard({ a }: { a: Activity }) {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-          <div><p className="text-gray-400">Budget</p><p className="font-medium text-gray-700 dark:text-gray-300">{fmt(a.effective_budget)}</p></div>
-          <div><p className="text-gray-400">Progress</p><p className="font-medium text-gray-700 dark:text-gray-300">{a.progress}%</p></div>
-          <div><p className="text-gray-400">End Date</p><p className="font-medium text-gray-700 dark:text-gray-300">{dt(a.end_date)}</p></div>
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div>
+            <p className="text-gray-400">Budget</p>
+            <p className="font-medium text-gray-700 dark:text-gray-300">{fmt(a.effective_budget)}</p>
+          </div>
+          <div>
+            <p className="text-gray-400">Paid</p>
+            {(a as any).total_paid > 0 ? (
+              <p className="font-medium text-green-600 dark:text-green-400">{fmt((a as any).total_paid)}</p>
+            ) : (
+              <p className="font-medium text-gray-400">—</p>
+            )}
+          </div>
+          <div>
+            <p className="text-gray-400">Progress</p>
+            <p className="font-medium text-gray-700 dark:text-gray-300">{a.progress}%</p>
+          </div>
+          <div>
+            <p className="text-gray-400">End Date</p>
+            <p className="font-medium text-gray-700 dark:text-gray-300">{dt(a.end_date)}</p>
+          </div>
         </div>
         <div className="mt-2">
           <BudgetBar value={a.progress} status={a.status} />
