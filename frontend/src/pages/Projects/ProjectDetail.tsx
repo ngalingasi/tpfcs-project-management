@@ -217,7 +217,7 @@ export default function ProjectDetail() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const fmt = (n?: number) => n != null ? `TZS ${Number(n).toLocaleString()}` : '—';
+  const fmt = (n?: number | string | null) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
   const dt  = (s?: string) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
@@ -574,25 +574,36 @@ export default function ProjectDetail() {
                   </div>
                   <StatusBadge status={t.status} />
                 </div>
-                <div className="grid grid-cols-4 gap-3 text-xs mb-3">
-                  <div><p className="text-gray-400">Target</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.target_value} {t.unit}</p></div>
-                  <div><p className="text-gray-400">Current</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.current_value} {t.unit}</p></div>
-                  <div><p className="text-gray-400">Activities</p><p className="font-medium text-gray-700 dark:text-gray-300">{activities.filter(a => a.target_id === t.target_id).length}</p></div>
-                  <div>
-                    <p className="text-gray-400">Budget</p>
-                    <div className="flex items-center gap-2">
-                      <p className={`font-medium ${t.allocated_budget > 0 ? 'text-gray-700 dark:text-gray-300' : 'text-orange-500 dark:text-orange-400'}`}>
-                        {t.allocated_budget > 0 ? `TZS ${Number(t.allocated_budget).toLocaleString()}` : '<svg className="w-3.5 h-3.5 inline-block flex-shrink-0 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> Not allocated'}
-                      </p>
-                      <button
-                        onClick={() => { setAllocateTarget(t); setModal('allocate'); }}
-                        className="text-brand-500 hover:text-brand-600 underline text-xs flex-shrink-0"
-                      >
-                        {t.allocated_budget > 0 ? 'Change' : 'Allocate'}
-                      </button>
+                {/* Compute paid total for this target */}
+                {(() => {
+                  const tActs    = activities.filter(a => a.target_id === t.target_id);
+                  const totalPaid = tActs.reduce((s, a) => s + Number((a as any).total_paid || 0), 0);
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs mb-3">
+                      <div><p className="text-gray-400">Target</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.target_value} {t.unit}</p></div>
+                      <div><p className="text-gray-400">Current</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.current_value} {t.unit}</p></div>
+                      <div><p className="text-gray-400">Activities</p><p className="font-medium text-gray-700 dark:text-gray-300">{tActs.length}</p></div>
+                      <div>
+                        <p className="text-gray-400">Paid</p>
+                        <p className={`font-medium ${totalPaid > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                          {totalPaid > 0 ? fmt(totalPaid) : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Budget</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className={`font-medium text-xs ${t.allocated_budget > 0 ? 'text-gray-700 dark:text-gray-300' : 'text-orange-500'}`}>
+                            {t.allocated_budget > 0 ? fmt(t.allocated_budget) : 'Not set'}
+                          </p>
+                          <button onClick={() => { setAllocateTarget(t); setModal('allocate'); }}
+                            className="text-brand-500 hover:text-brand-600 underline text-[10px] flex-shrink-0">
+                            {t.allocated_budget > 0 ? 'Edit' : 'Set'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
                 <BudgetBar value={progress} label="Progress" />
               </div>
             );
@@ -632,10 +643,27 @@ export default function ProjectDetail() {
                 <Link to={`/activities/${a.activity_id}`}
                   className="text-xs text-brand-500 hover:text-brand-600 flex-shrink-0">View →</Link>
               </div>
-              <div className="grid grid-cols-3 gap-3 text-xs mb-2">
-                <div><p className="text-gray-400">Budget</p><p className="font-medium text-gray-700 dark:text-gray-300">TZS {Number(a.effective_budget).toLocaleString()}</p></div>
-                <div><p className="text-gray-400">Progress</p><p className="font-medium text-gray-700 dark:text-gray-300">{a.progress}%</p></div>
-                <div><p className="text-gray-400">End Date</p><p className="font-medium text-gray-700 dark:text-gray-300">{dt(a.end_date)}</p></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-2">
+                <div>
+                  <p className="text-gray-400">Budget</p>
+                  <p className="font-medium text-gray-700 dark:text-gray-300">
+                    {fmt((a as any).effective_budget ?? (a as any).budgeted_amount)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Paid</p>
+                  <p className={`font-medium ${Number((a as any).total_paid) > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                    {Number((a as any).total_paid) > 0 ? fmt((a as any).total_paid) : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Progress</p>
+                  <p className="font-medium text-gray-700 dark:text-gray-300">{a.progress}%</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">End Date</p>
+                  <p className="font-medium text-gray-700 dark:text-gray-300">{dt(a.end_date)}</p>
+                </div>
               </div>
               <BudgetBar value={a.progress} status={a.status} />
             </div>
