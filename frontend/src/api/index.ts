@@ -193,3 +193,13 @@ export const storesApi = {
   update: (id: number, data: any) => client.patch(`/inventory/stores/${id}`, data),
   delete: (id: number)   => client.delete(`/inventory/stores/${id}`),
 };
+
+// ── Purchase Orders API ───────────────────────────────────────────────────────
+export const purchaseOrdersApi = {
+  list:   (params?: any) => client.get('/purchase-orders', { params }),
+  get:    (id: number)   => client.get(`/purchase-orders/${id}`),
+  create: (data: any)    => client.post('/purchase-orders', data),
+  update: (id: number, data: any) => client.put(`/purchase-orders/${id}`, data),
+  cancel: (id: number)   => client.post(`/purchase-orders/${id}/cancel`),
+  delete: (id: number)   => client.delete(`/purchase-orders/${id}`),
+};

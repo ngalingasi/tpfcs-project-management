@@ -16,6 +16,9 @@ import FinancialDashboard from "./pages/Dashboard/FinancialDashboard";
 import SuppliersPage    from "./pages/Inventory/SuppliersPage";
 import ProductsPage     from "./pages/Inventory/ProductsPage";
 import StoresPage       from "./pages/Inventory/StoresPage";
+import OrdersPage       from "./pages/Inventory/OrdersPage";
+import OrderForm        from "./pages/Inventory/OrderForm";
+import OrderDetail      from "./pages/Inventory/OrderDetail";
 
 // Projects
 import ProjectList        from "./pages/Projects/ProjectList";
@@ -71,6 +74,10 @@ export default function App() {
               <Route path="/inventory/suppliers"    element={<SuppliersPage />} />
               <Route path="/inventory/products"     element={<ProductsPage />} />
               <Route path="/inventory/stores"       element={<StoresPage />} />
+              <Route path="/inventory/orders"       element={<OrdersPage />} />
+              <Route path="/inventory/orders/new"   element={<OrderForm />} />
+              <Route path="/inventory/orders/:id"   element={<OrderDetail />} />
+              <Route path="/inventory/orders/:id/edit" element={<OrderForm />} />
 
               {/* Projects */}
               <Route path="/projects"                  element={<ProjectList />} />
