@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   isOpen: boolean;
@@ -17,20 +18,41 @@ const SIZE_CLS = {
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }: Props) {
   useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+  return createPortal(
+    // Full-screen overlay rendered directly into document.body
+    // z-[99999] ensures it sits above header, sidebar and all other UI
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+      style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+    >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 dark:bg-black/70" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
 
-      {/* Dialog */}
-      <div className={`relative w-full ${SIZE_CLS[size]} bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]`}>
+      {/* Dialog — centered, never touching header */}
+      <div
+        className={`
+          relative w-full ${SIZE_CLS[size]}
+          bg-white dark:bg-gray-900
+          rounded-2xl shadow-2xl
+          border border-gray-200 dark:border-gray-700
+          flex flex-col
+          max-h-[calc(100vh-4rem)]
+          mt-8
+        `}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <h3 className="text-base font-semibold text-gray-800 dark:text-white">{title}</h3>
@@ -44,11 +66,12 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
           </button>
         </div>
 
-        {/* Body */}
+        {/* Body — scrollable */}
         <div className="overflow-y-auto flex-1 px-6 py-5">
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

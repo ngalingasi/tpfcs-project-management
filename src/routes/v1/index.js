@@ -9,7 +9,8 @@ const documentRoute = require('./document.route');
 const lookupRoute = require('./lookup.route');
 const budgetRoute  = require('./budget.route');
 const paymentRoute   = require('./payment.route');
-const financialRoute = require('./financial.route');
+const financialRoute  = require('./financial.route');
+const inventoryRoute  = require('./inventory.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -25,7 +26,8 @@ const defaultRoutes = [
   { path: '/lookups', route: lookupRoute },
   { path: '/budget',     route: budgetRoute },
   { path: '/activities/:activityId/payments', route: paymentRoute },
-  { path: '/financial', route: financialRoute },
+  { path: '/financial',  route: financialRoute },
+  { path: '/inventory',  route: inventoryRoute },
 ];
 
 defaultRoutes.forEach(({ path, route }) => router.use(path, route));

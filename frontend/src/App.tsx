@@ -13,6 +13,9 @@ import ChangePassword     from "./pages/AuthPages/ChangePassword";
 import TpfcsDashboard     from "./pages/Dashboard/TpfcsDashboard";
 import AnalysisDashboard   from "./pages/Dashboard/AnalysisDashboard";
 import FinancialDashboard from "./pages/Dashboard/FinancialDashboard";
+import SuppliersPage    from "./pages/Inventory/SuppliersPage";
+import ProductsPage     from "./pages/Inventory/ProductsPage";
+import StoresPage       from "./pages/Inventory/StoresPage";
 
 // Projects
 import ProjectList        from "./pages/Projects/ProjectList";
@@ -65,6 +68,9 @@ export default function App() {
               <Route index path="/"                    element={<TpfcsDashboard />} />
               <Route path="/analysis"                  element={<AnalysisDashboard />} />
               <Route path="/financial"                 element={<FinancialDashboard />} />
+              <Route path="/inventory/suppliers"    element={<SuppliersPage />} />
+              <Route path="/inventory/products"     element={<ProductsPage />} />
+              <Route path="/inventory/stores"       element={<StoresPage />} />
 
               {/* Projects */}
               <Route path="/projects"                  element={<ProjectList />} />

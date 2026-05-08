@@ -3,12 +3,14 @@ const allRoles = {
     'getProjects',
     'getActivities',
     'updateActivity',
+    'getInventory',   // viewer — read only
   ],
   manager: [
     'getProjects',   'manageProjects',
     'getActivities', 'manageActivities', 'updateActivity',
     'getUsers',
     'getSectors',    'getRegions', 'getImplementers',
+    'getInventory',  // project manager — view only
   ],
   admin: [
     'getUsers',        'manageUsers',
@@ -17,6 +19,7 @@ const allRoles = {
     'getSectors',      'manageSectors',
     'getRegions',      'manageRegions',
     'getImplementers', 'manageImplementers',
+    'getInventory',    'manageInventory',   // full inventory access
   ],
 };
 

@@ -167,3 +167,29 @@ export const lookupsApi = {
   updateImplementer: (id: number, data: Partial<Implementer>) => client.patch<Implementer>(`/lookups/implementers/${id}`, data),
   deleteImplementer: (id: number) => client.delete(`/lookups/implementers/${id}`),
 };
+
+// ── Inventory API ─────────────────────────────────────────────────────────────
+export const suppliersApi = {
+  list:   (params?: any) => client.get('/inventory/suppliers', { params }),
+  get:    (id: number)   => client.get(`/inventory/suppliers/${id}`),
+  create: (data: any)    => client.post('/inventory/suppliers', data),
+  update: (id: number, data: any) => client.patch(`/inventory/suppliers/${id}`, data),
+  delete: (id: number)   => client.delete(`/inventory/suppliers/${id}`),
+};
+
+export const productsApi = {
+  list:          (params?: any)       => client.get('/inventory/products', { params }),
+  get:           (id: number)         => client.get(`/inventory/products/${id}`),
+  getCategories: (product_type?: string) => client.get('/inventory/products/meta/categories', { params: product_type ? { product_type } : {} }),
+  create:        (data: any)          => client.post('/inventory/products', data),
+  update:        (id: number, data: any) => client.patch(`/inventory/products/${id}`, data),
+  delete:        (id: number)         => client.delete(`/inventory/products/${id}`),
+};
+
+export const storesApi = {
+  list:   (params?: any) => client.get('/inventory/stores', { params }),
+  get:    (id: number)   => client.get(`/inventory/stores/${id}`),
+  create: (data: any)    => client.post('/inventory/stores', data),
+  update: (id: number, data: any) => client.patch(`/inventory/stores/${id}`, data),
+  delete: (id: number)   => client.delete(`/inventory/stores/${id}`),
+};
