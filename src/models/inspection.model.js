@@ -125,16 +125,22 @@ const deleteChecklist = async (id, userId) => {
 
 const IR_BASE = `
   SELECT ir.*,
-         po.order_number, s.company_name AS supplier_name,
+         po.order_number, sup.company_name AS supplier_name,
          p.name AS project_name,
          cl.checklist_name, cl.inspection_type AS cl_type,
-         u.full_name AS created_by_name
+         u.full_name AS created_by_name,
+         tf.transfer_number,
+         ss.store_name AS source_store_name,
+         ds.store_name AS destination_store_name
   FROM inspection_requests ir
-  JOIN purchase_orders po ON po.purchase_order_id = ir.purchase_order_id
-  JOIN suppliers s ON s.supplier_id = po.supplier_id
-  LEFT JOIN projects p ON p.project_id = ir.project_id
+  LEFT JOIN purchase_orders po  ON po.purchase_order_id = ir.purchase_order_id
+  LEFT JOIN suppliers sup       ON sup.supplier_id = po.supplier_id
+  LEFT JOIN projects p          ON p.project_id = ir.project_id
   JOIN inspection_checklists cl ON cl.checklist_id = ir.checklist_id
-  LEFT JOIN users u ON u.user_id = ir.created_by
+  LEFT JOIN users u             ON u.user_id = ir.created_by
+  LEFT JOIN stock_transfers tf  ON tf.transfer_id = ir.source_id AND ir.source_type = 'TRANSFER'
+  LEFT JOIN stores ss           ON ss.store_id = tf.source_store_id
+  LEFT JOIN stores ds           ON ds.store_id = ir.destination_store_id
   WHERE ir.deleted_at IS NULL`;
 
 const getRequests = async ({ page, limit, search, inspection_type, status, project_id }) => {
@@ -204,7 +210,9 @@ const getRequestById = async (id, conn = null) => {
 const createRequest = async (body, userId) => {
   return transaction(async (conn) => {
     const {
-      inspection_type, project_id = null, purchase_order_id, checklist_id,
+      inspection_type, project_id = null,
+      purchase_order_id = null, source_type = 'ORDER', source_id = null,
+      destination_store_id = null, checklist_id,
       location_name, location_address = null, location_country = null,
       location_region = null, latitude = null, longitude = null,
       inspection_date, inspection_time = null,
@@ -256,7 +264,7 @@ const updateRequest = async (id, body, userId) => {
   if (ir.status === 'completed') throw new ApiError(httpStatus.BAD_REQUEST, 'Completed inspections are read-only');
 
   return transaction(async (conn) => {
-    const allowed = ['inspection_type','project_id','purchase_order_id','checklist_id',
+    const allowed = ['inspection_type','project_id','purchase_order_id','source_type','source_id','destination_store_id','checklist_id',
                      'location_name','location_address','location_country','location_region',
                      'location_region_id','location_city','latitude','longitude',
                      'inspection_date','inspection_time',
@@ -402,7 +410,6 @@ module.exports = {
 
 const getExecutionData = async (requestId, userId) => {
   const ir = await getRequestById(requestId);
-  // Check assigned
   const assigned = ir.assignments?.find(a => a.user_id === userId);
   if (!assigned) throw new ApiError(httpStatus.FORBIDDEN, 'You are not assigned to this inspection');
   if (!['scheduled','active','inspected'].includes(ir.status)) {
@@ -505,7 +512,7 @@ const approveInspection = async (requestId, body, userId) => {
   const isGRI      = ir.inspection_type === 'GRI';
   const isTransfer = ir.source_type === 'TRANSFER';
 
-  // GRI requires a receiving store; FA and TRANSFER do not (TRANSFER uses destination store automatically)
+  // GRI (non-transfer) requires a receiving store selection; FA and TRANSFER handle store automatically
   if (isGRI && !isTransfer && !body.receiving_store_id) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Receiving store is required for Goods Receiving (GRI) inspections');
   }
@@ -557,10 +564,16 @@ const approveInspection = async (requestId, body, userId) => {
       }
     }
 
-    // 3b. TRANSFER — receiving into destination store, update transfer status
+    // 3b. TRANSFER — receive into destination store, update transfer status
     if (isTransfer && ir.source_id) {
       const transferModel = require('./transfer.model');
+      // Mark transfer as received and add stock to destination store
       await transferModel.receiveTransfer(ir.source_id, approvalId, userId);
+      // Update inspection request's transfer status
+      await conn.query(
+        "UPDATE inspection_requests SET status = 'approved', updated_by = ? WHERE inspection_request_id = ?",
+        [userId, requestId]
+      ).catch(() => {});
     }
 
     // 3c. FA — no stock movement, inspection closes as-is

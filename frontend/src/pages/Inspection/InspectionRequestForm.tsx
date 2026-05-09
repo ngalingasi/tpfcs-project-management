@@ -20,6 +20,10 @@ export default function InspectionRequestForm() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEdit   = !!id;
+  const sourceType    = searchParams.get('source_type') ?? 'ORDER';  // ORDER or TRANSFER
+  const sourceId      = searchParams.get('source_id');
+  const dstStoreId    = searchParams.get('dst_store_id');
+  const dstStoreName  = searchParams.get('dst_store_name');
 
   const [inspType,      setInspType]      = useState('FA');
   const [projectId,     setProjectId]     = useState('');
@@ -61,12 +65,25 @@ export default function InspectionRequestForm() {
       projectsApi.list({ limit: 100 }),
       usersApi.list({ limit: 200, status: 'active' }),
       lookupsApi.regions(),
-    ]).then(([cl, ord, proj, usr, reg]) => {
+      import('../../api').then(m => m.transfersApi.list({ limit: 200, status: 'dispatched' })),
+    ]).then(([cl, ord, proj, usr, reg, trf]) => {
       setChecklists(cl.data.results);
       setOrders(ord.data.results);
       setProjects(proj.data.results);
       setUsers(usr.data.results);
       setRegions(Array.isArray(reg.data) ? reg.data : []);
+      setTransfers(trf.data.results ?? []);
+      // If coming from transfer detail page, auto-load transfer info
+      if (sourceType === 'TRANSFER' && sourceId) {
+        import('../../api').then(m => m.transfersApi.get(Number(sourceId))).then(r => {
+          setTransferInfo(r.data);
+          setOrderItems(r.data.items ?? []);
+          // Auto-set location to destination store
+          if (!locationName && r.data.destination_store_name) {
+            // Will be set below
+          }
+        }).catch(() => {});
+      }
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -125,7 +142,8 @@ export default function InspectionRequestForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orderId)       { setError('Order is required'); return; }
+    if (sourceType === 'ORDER' && !orderId) { setError('Order is required'); return; }
+    if (sourceType === 'TRANSFER' && !transferSource) { setError('Transfer is required'); return; }
     if (!checklistId)   { setError('Checklist is required'); return; }
     if (!locationName)  { setError('Inspection location name is required'); return; }
     if (locationCountry === 'Tanzania' && !locationRegionId) { setError('Region is required for local inspections'); return; }
@@ -137,7 +155,10 @@ export default function InspectionRequestForm() {
       const payload = {
         inspection_type: inspType,
         project_id: projectId ? Number(projectId) : null,
-        purchase_order_id: Number(orderId),
+        purchase_order_id: sourceType === 'ORDER' ? (orderId ? Number(orderId) : null) : null,
+        source_type: sourceType,
+        source_id: sourceType === 'TRANSFER' ? (transferSource ? Number(transferSource) : null) : null,
+        destination_store_id: sourceType === 'TRANSFER' && transferInfo ? transferInfo.destination_store_id : null,
         checklist_id: Number(checklistId),
         location_name: locationName,
         location_address: locationAddr || null,

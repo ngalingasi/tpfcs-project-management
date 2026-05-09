@@ -29,7 +29,10 @@ const requestSchema = {
   body: Joi.object().keys({
     inspection_type:          Joi.string().valid('FA','GRI').required(),
     project_id:               Joi.number().integer().optional().allow(null),
-    purchase_order_id:        Joi.number().integer().required(),
+    purchase_order_id:        Joi.number().integer().optional().allow(null),
+    source_type:              Joi.string().valid('ORDER','TRANSFER').optional().default('ORDER'),
+    source_id:                Joi.number().integer().optional().allow(null),
+    destination_store_id:     Joi.number().integer().optional().allow(null),
     checklist_id:             Joi.number().integer().required(),
     location_name:            Joi.string().required(),
     location_address:         Joi.string().optional().allow('', null),

@@ -215,7 +215,7 @@ export const inspectionApi = {
   // Requests
   listRequests:    (params?: any) => client.get('/inspection/requests', { params }),
   getRequest:      (id: number)   => client.get(`/inspection/requests/${id}`),
-  createRequest:   (data: any)    => client.post('/inspection/requests', data),
+  createRequest:   (data: any)    => client.post('/inspection/requests', data), // data may include source_type, source_id, destination_store_id
   updateRequest:   (id: number, data: any) => client.put(`/inspection/requests/${id}`, data),
   cancelRequest:   (id: number)   => client.post(`/inspection/requests/${id}/cancel`),
   deleteRequest:   (id: number)   => client.delete(`/inspection/requests/${id}`),
