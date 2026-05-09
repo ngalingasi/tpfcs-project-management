@@ -35,6 +35,7 @@ const NAV: NavItem[] = [
     { name: "Suppliers", path: "/inventory/suppliers" },
     { name: "Products",  path: "/inventory/products" },
     { name: "Stores",    path: "/inventory/stores" },
+    { name: "Transfers", path: "/inventory/transfers" },
     { name: "Stock",     path: "/inventory/stock" },
   ]},
   { name: "Inspection",  icon: <Icon.Inspection />, subItems: [

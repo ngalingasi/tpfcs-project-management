@@ -501,11 +501,12 @@ const approveInspection = async (requestId, body, userId) => {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Approval note is required');
   }
 
-  const isFA  = ir.inspection_type === 'FA';
-  const isGRI = ir.inspection_type === 'GRI';
+  const isFA       = ir.inspection_type === 'FA';
+  const isGRI      = ir.inspection_type === 'GRI';
+  const isTransfer = ir.source_type === 'TRANSFER';
 
-  // GRI requires a receiving store; FA does not
-  if (isGRI && !body.receiving_store_id) {
+  // GRI requires a receiving store; FA and TRANSFER do not (TRANSFER uses destination store automatically)
+  if (isGRI && !isTransfer && !body.receiving_store_id) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Receiving store is required for Goods Receiving (GRI) inspections');
   }
 
@@ -527,45 +528,42 @@ const approveInspection = async (requestId, body, userId) => {
       [userId, requestId]
     );
 
-    // 3. GRI ONLY — create stock transactions + update store_inventory
+    // 3a. GRI — stock in from order items
     if (isGRI && body.receiving_store_id) {
-      // Get inspected items (or all order items if none specified)
       const [specificItems] = await conn.query(
         `SELECT poi.product_id, SUM(poi.quantity) AS qty
          FROM inspection_request_items iri
          JOIN purchase_order_items poi ON poi.item_id = iri.purchase_order_item_id
-         WHERE iri.inspection_request_id = ?
-         GROUP BY poi.product_id`,
-        [requestId]
+         WHERE iri.inspection_request_id = ? GROUP BY poi.product_id`, [requestId]
       );
       const [allOrderItems] = await conn.query(
         `SELECT poi.product_id, SUM(poi.quantity) AS qty
-         FROM purchase_order_items poi
-         WHERE poi.purchase_order_id = ?
-         GROUP BY poi.product_id`,
-        [ir.purchase_order_id]
+         FROM purchase_order_items poi WHERE poi.purchase_order_id = ?
+         GROUP BY poi.product_id`, [ir.purchase_order_id]
       );
       const finalItems = (Array.isArray(specificItems) && specificItems.length)
-        ? specificItems
-        : (Array.isArray(allOrderItems) ? allOrderItems : []);
-
+        ? specificItems : (Array.isArray(allOrderItems) ? allOrderItems : []);
       for (const item of finalItems) {
         await conn.query(
-          `INSERT INTO stock_transactions
-             (transaction_type, store_id, product_id, quantity, source_type, source_id, notes, created_by)
+          `INSERT INTO stock_transactions (transaction_type, store_id, product_id, quantity, source_type, source_id, notes, created_by)
            VALUES ('STOCK_IN',?,?,?,'INSPECTION_APPROVAL',?,?,?)`,
-          [body.receiving_store_id, item.product_id, item.qty,
-           approvalId, `GRI approved — ${ir.request_number}`, userId]
+          [body.receiving_store_id, item.product_id, item.qty, approvalId, `GRI approved — ${ir.request_number}`, userId]
         );
         await conn.query(
-          `INSERT INTO store_inventory (store_id, product_id, quantity)
-           VALUES (?,?,?)
+          `INSERT INTO store_inventory (store_id, product_id, quantity) VALUES (?,?,?)
            ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)`,
           [body.receiving_store_id, item.product_id, item.qty]
         );
       }
     }
-    // FA — no stock movement, just closes the inspection
+
+    // 3b. TRANSFER — receiving into destination store, update transfer status
+    if (isTransfer && ir.source_id) {
+      const transferModel = require('./transfer.model');
+      await transferModel.receiveTransfer(ir.source_id, approvalId, userId);
+    }
+
+    // 3c. FA — no stock movement, inspection closes as-is
 
     return getRequestById(requestId, conn);
   });

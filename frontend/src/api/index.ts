@@ -237,3 +237,16 @@ export const inspectionApi = {
   getStoreStock:      (storeId: number) => client.get(`/inspection/stock/${storeId}`),
   getStockTransactions:(params?: any)   => client.get('/inspection/stock-transactions', { params }),
 };
+
+// ── Stock Transfers API ───────────────────────────────────────────────────────
+export const transfersApi = {
+  list:     (params?: any) => client.get('/transfers', { params }),
+  get:      (id: number)   => client.get(`/transfers/${id}`),
+  create:   (data: any)    => client.post('/transfers', data),
+  update:   (id: number, data: any) => client.put(`/transfers/${id}`, data),
+  approve:  (id: number)   => client.post(`/transfers/${id}/approve`),
+  dispatch: (id: number)   => client.post(`/transfers/${id}/dispatch`),
+  receive:  (id: number)   => client.post(`/transfers/${id}/receive`),
+  cancel:        (id: number)         => client.post(`/transfers/${id}/cancel`),
+  getStoreStock: (storeId: number)     => client.get(`/transfers/store-stock/${storeId}`),
+};
