@@ -189,6 +189,15 @@ const getRequestById = async (id, conn = null) => {
      JOIN products pr ON pr.product_id = poi.product_id
      WHERE iri.inspection_request_id = ?`, [id]
   );
+  // Always load checklist items + responses (used for preview on detail page)
+  ir.checklist_items = await exec(
+    'SELECT * FROM checklist_items WHERE checklist_id = ? ORDER BY item_order, checklist_item_id',
+    [ir.checklist_id]
+  );
+  ir.responses = await exec(
+    'SELECT * FROM inspection_responses WHERE inspection_request_id = ? ORDER BY checklist_item_id',
+    [id]
+  );
   return ir;
 };
 

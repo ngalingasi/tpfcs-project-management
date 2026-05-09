@@ -357,6 +357,115 @@ export default function InspectionRequestDetail() {
         </div>
       )}
 
+      {/* Checklist Responses — shown when inspection has been executed */}
+      {ir.checklist_items?.length > 0 && ir.responses?.length > 0 && (
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+          <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Checklist Responses — {ir.checklist_name}
+            </h2>
+            {(() => {
+              const respMap: Record<number,any> = {};
+              (ir.responses ?? []).forEach((r: any) => { respMap[r.checklist_item_id] = r; });
+              const pass = Object.values(respMap).filter((r: any) => ['pass','yes'].includes(r.response_value?.toLowerCase())).length;
+              const fail = Object.values(respMap).filter((r: any) => ['fail','no'].includes(r.response_value?.toLowerCase())).length;
+              return (
+                <div className="flex gap-2">
+                  {pass > 0 && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">{pass} Pass/Yes</span>}
+                  {fail > 0 && <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400">{fail} Fail/No</span>}
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{ir.responses.length}/{ir.checklist_items.length} Answered</span>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Inspector remarks & recommendation */}
+          {(ir.general_remarks || ir.recommendation) && (
+            <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ir.general_remarks && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Inspector Remarks</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{ir.general_remarks}</p>
+                </div>
+              )}
+              {ir.recommendation && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Recommendation</p>
+                  <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full capitalize ${
+                    ir.recommendation === 'approved'    ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
+                    ir.recommendation === 'rejected'    ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' :
+                    'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400'
+                  }`}>{ir.recommendation}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Per-item responses */}
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {(() => {
+              const respMap: Record<number,any> = {};
+              (ir.responses ?? []).forEach((r: any) => { respMap[r.checklist_item_id] = r; });
+              const base = (import.meta.env.VITE_API_URL ?? '').replace('/api','');
+              return ir.checklist_items.map((item: any, idx: number) => {
+                const resp = respMap[item.checklist_item_id];
+                const val  = resp?.response_value ?? '';
+                const isPass = ['pass','yes'].includes(val.toLowerCase());
+                const isFail = ['fail','no'].includes(val.toLowerCase());
+                return (
+                  <div key={item.checklist_item_id} className="px-5 py-3 flex items-start gap-3">
+                    {/* Index */}
+                    <span className="text-xs text-gray-400 w-5 flex-shrink-0 mt-0.5">{idx+1}.</span>
+
+                    {/* Item info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {item.item_title}
+                        {item.is_required && <span className="text-red-400 ml-1 text-xs">*</span>}
+                      </p>
+                      {resp?.response_comment && (
+                        <p className="text-xs text-gray-400 mt-0.5 italic">"{resp.response_comment}"</p>
+                      )}
+                      {resp?.evidence_path && (
+                        <button
+                          onClick={() => {
+                            const fname = resp.evidence_path.split('/').pop();
+                            const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(fname);
+                            setPreview({ url: `${base}/uploads/${fname}`, name: resp.evidence_name ?? fname, type: isImg ? 'image' : 'pdf' });
+                          }}
+                          className="mt-1 flex items-center gap-1 text-xs text-brand-500 hover:text-brand-600 hover:underline">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                          View evidence
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Response badge */}
+                    {resp ? (
+                      <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full flex-shrink-0 ${
+                        isPass ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
+                        isFail ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' :
+                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                      }`}>
+                        {val || 'Answered'}
+                      </span>
+                    ) : (
+                      <span className={`px-2.5 py-0.5 text-xs rounded-full flex-shrink-0 ${
+                        item.is_required
+                          ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400'
+                          : 'bg-gray-100 text-gray-400 dark:bg-gray-800'
+                      }`}>
+                        {item.is_required ? 'Missing' : 'Skipped'}
+                      </span>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
+
       {ir.request_notes && (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Notes</h2>
