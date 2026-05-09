@@ -225,4 +225,15 @@ export const inspectionApi = {
   getEvidence:        (assignmentId: number)          => client.get(`/inspection/assignments/${assignmentId}/evidence`),
   uploadEvidence:     (assignmentId: number, formData: FormData) =>
     client.post(`/inspection/assignments/${assignmentId}/evidence`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  // Execution
+  getExecutionData:   (id: number) => client.get(`/inspection/requests/${id}/execute`),
+  saveResponses:      (id: number, data: FormData) =>
+    client.post(`/inspection/requests/${id}/responses`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  submitInspection:   (id: number, data: any) => client.post(`/inspection/requests/${id}/submit`, data),
+  // Approval
+  approveInspection:  (id: number, data: any) => client.post(`/inspection/requests/${id}/approve`, data),
+  rejectApproval:     (id: number, data: any) => client.post(`/inspection/requests/${id}/reject-approval`, data),
+  // Stock
+  getStoreStock:      (storeId: number) => client.get(`/inspection/stock/${storeId}`),
+  getStockTransactions:(params?: any)   => client.get('/inspection/stock-transactions', { params }),
 };

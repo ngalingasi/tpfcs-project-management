@@ -118,10 +118,25 @@ export default function InspectionRequestsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex justify-end gap-1 flex-wrap">
+                      {/* Execute — for accepted assignees */}
+                      {(ir.accepted_user_ids ?? []).includes(user?.user_id) &&
+                       ['scheduled','active'].includes(ir.status) && (
+                        <button onClick={() => navigate(`/inspection/requests/${ir.inspection_request_id}/execute`)}
+                          className="px-2.5 py-1 text-xs font-medium bg-brand-500 text-white rounded-md hover:bg-brand-600">
+                          Execute
+                        </button>
+                      )}
+                      {/* Approve — for managers */}
+                      {canManage && ir.status === 'pending_approval' && (
+                        <button onClick={() => navigate(`/inspection/requests/${ir.inspection_request_id}/approve`)}
+                          className="px-2.5 py-1 text-xs font-medium bg-green-500 text-white rounded-md hover:bg-green-600">
+                          Approve
+                        </button>
+                      )}
                       <button onClick={() => navigate(`/inspection/requests/${ir.inspection_request_id}`)}
                         className="px-2.5 py-1 text-xs text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-md">View</button>
-                      {canManage && !['cancelled','completed'].includes(ir.status) && (
+                      {canManage && !['cancelled','completed','approved'].includes(ir.status) && (
                         <>
                           <button onClick={() => navigate(`/inspection/requests/${ir.inspection_request_id}/edit`)}
                             className="px-2.5 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">Edit</button>

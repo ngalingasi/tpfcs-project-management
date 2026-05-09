@@ -150,6 +150,23 @@ const getRequests = async ({ page, limit, search, inspection_type, status, proje
     `SELECT COUNT(*) AS total FROM inspection_requests ir WHERE ir.deleted_at IS NULL${filter}`, params
   );
   const rows = await query(`${IR_BASE}${filter} ORDER BY ir.created_at DESC LIMIT ? OFFSET ?`, [...params, l, offset]);
+
+  // Attach assignment counts and accepted user ids for each request
+  if (rows.length) {
+    const ids = rows.map(r => r.inspection_request_id);
+    const assignments = await query(
+      `SELECT inspection_request_id, user_id, assignment_status
+       FROM inspection_assignments
+       WHERE inspection_request_id IN (${ids.map(() => '?').join(',')})`,
+      ids
+    );
+    rows.forEach(row => {
+      const rowAssigns = assignments.filter(a => a.inspection_request_id === row.inspection_request_id);
+      row.assignment_count  = rowAssigns.length;
+      row.accepted_user_ids = rowAssigns.filter(a => a.assignment_status === 'accepted').map(a => a.user_id);
+    });
+  }
+
   return { results: rows, ...paginate(countRow.total) };
 };
 
@@ -368,4 +385,239 @@ module.exports = {
   getRequests, getRequestById, createRequest, updateRequest, cancelRequest, deleteRequest,
   acceptAssignment, rejectAssignment,
   uploadAssignmentEvidence, getAssignmentEvidence,
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INSPECTION EXECUTION
+// ══════════════════════════════════════════════════════════════════════════════
+
+const getExecutionData = async (requestId, userId) => {
+  const ir = await getRequestById(requestId);
+  // Check assigned
+  const assigned = ir.assignments?.find(a => a.user_id === userId);
+  if (!assigned) throw new ApiError(httpStatus.FORBIDDEN, 'You are not assigned to this inspection');
+  if (!['scheduled','active','inspected'].includes(ir.status)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot execute inspection with status "${ir.status}"`);
+  }
+  // Load checklist items
+  const checklistItems = await query(
+    'SELECT * FROM checklist_items WHERE checklist_id = ? ORDER BY item_order, checklist_item_id',
+    [ir.checklist_id]
+  );
+  // Load existing responses
+  const responses = await query(
+    'SELECT * FROM inspection_responses WHERE inspection_request_id = ?', [requestId]
+  );
+  return { ...ir, checklist_items: checklistItems, responses };
+};
+
+const saveResponses = async (requestId, responses, userId, file = null) => {
+  const ir = await getRequestById(requestId);
+  const assigned = ir.assignments?.find(a => a.user_id === userId && a.assignment_status === 'accepted');
+  if (!assigned) throw new ApiError(httpStatus.FORBIDDEN, 'Only accepted assignees can save responses');
+  if (!['scheduled','active','inspected'].includes(ir.status)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Cannot save responses for this inspection status');
+  }
+
+  // Auto-advance to active when first responses saved
+  if (ir.status === 'scheduled') {
+    await query("UPDATE inspection_requests SET status = 'active' WHERE inspection_request_id = ?", [requestId]);
+  }
+
+  for (const resp of responses) {
+    const evidencePath = (resp.evidence_file && file) ? file.path : null;
+    const evidenceName = (resp.evidence_file && file) ? file.originalname : null;
+    await query(
+      `INSERT INTO inspection_responses
+         (inspection_request_id, checklist_item_id, order_item_id, response_value, response_comment,
+          evidence_path, evidence_name, created_by)
+       VALUES (?,?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE
+         response_value    = VALUES(response_value),
+         response_comment  = VALUES(response_comment),
+         evidence_path     = COALESCE(VALUES(evidence_path), evidence_path),
+         evidence_name     = COALESCE(VALUES(evidence_name), evidence_name)`,
+      [requestId, resp.checklist_item_id, resp.order_item_id || null,
+       resp.response_value || null, resp.response_comment || null,
+       evidencePath, evidenceName, userId]
+    );
+  }
+  return query('SELECT * FROM inspection_responses WHERE inspection_request_id = ?', [requestId]);
+};
+
+const submitInspection = async (requestId, body, userId) => {
+  const ir = await getRequestById(requestId);
+  const assigned = ir.assignments?.find(a => a.user_id === userId && a.assignment_status === 'accepted');
+  if (!assigned) throw new ApiError(httpStatus.FORBIDDEN, 'Only accepted assignees can submit');
+  if (!['active','scheduled'].includes(ir.status)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot submit inspection with status "${ir.status}"`);
+  }
+
+  // Validate required checklist items answered
+  const checklistItems = await query(
+    'SELECT * FROM checklist_items WHERE checklist_id = ? AND is_required = 1', [ir.checklist_id]
+  );
+  const responses = await query(
+    'SELECT checklist_item_id FROM inspection_responses WHERE inspection_request_id = ? AND response_value IS NOT NULL',
+    [requestId]
+  );
+  const answeredIds = new Set(responses.map(r => r.checklist_item_id));
+  const missing = checklistItems.filter(i => !answeredIds.has(i.checklist_item_id));
+  if (missing.length) {
+    throw new ApiError(httpStatus.BAD_REQUEST,
+      `Required checklist items not answered: ${missing.map(i => i.item_title).join(', ')}`
+    );
+  }
+
+  await query(
+    `UPDATE inspection_requests
+     SET status = 'pending_approval', general_remarks = ?, recommendation = ?,
+         submitted_at = NOW(), submitted_by = ?, updated_by = ?
+     WHERE inspection_request_id = ?`,
+    [body.general_remarks || null, body.recommendation || null, userId, userId, requestId]
+  );
+  return getRequestById(requestId);
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// APPROVAL & STOCK
+// ══════════════════════════════════════════════════════════════════════════════
+
+const approveInspection = async (requestId, body, userId) => {
+  const ir = await getRequestById(requestId);
+  if (ir.status !== 'pending_approval') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot approve inspection with status "${ir.status}"`);
+  }
+  if (!body.approval_note?.trim()) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Approval note is required');
+  }
+
+  const isFA  = ir.inspection_type === 'FA';
+  const isGRI = ir.inspection_type === 'GRI';
+
+  // GRI requires a receiving store; FA does not
+  if (isGRI && !body.receiving_store_id) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Receiving store is required for Goods Receiving (GRI) inspections');
+  }
+
+  return transaction(async (conn) => {
+    // 1. Create approval record
+    const [appr] = await conn.query(
+      `INSERT INTO inspection_approvals
+         (inspection_request_id, approval_status, approval_note, receiving_store_id, approved_by)
+       VALUES (?,?,?,?,?)`,
+      [requestId, 'approved', body.approval_note,
+       isGRI ? (body.receiving_store_id || null) : null,   // FA never stores receiving_store_id
+       userId]
+    );
+    const approvalId = appr.insertId;
+
+    // 2. Update request status
+    await conn.query(
+      "UPDATE inspection_requests SET status = 'approved', updated_by = ? WHERE inspection_request_id = ?",
+      [userId, requestId]
+    );
+
+    // 3. GRI ONLY — create stock transactions + update store_inventory
+    if (isGRI && body.receiving_store_id) {
+      // Get inspected items (or all order items if none specified)
+      const [specificItems] = await conn.query(
+        `SELECT poi.product_id, SUM(poi.quantity) AS qty
+         FROM inspection_request_items iri
+         JOIN purchase_order_items poi ON poi.item_id = iri.purchase_order_item_id
+         WHERE iri.inspection_request_id = ?
+         GROUP BY poi.product_id`,
+        [requestId]
+      );
+      const [allOrderItems] = await conn.query(
+        `SELECT poi.product_id, SUM(poi.quantity) AS qty
+         FROM purchase_order_items poi
+         WHERE poi.purchase_order_id = ?
+         GROUP BY poi.product_id`,
+        [ir.purchase_order_id]
+      );
+      const finalItems = (Array.isArray(specificItems) && specificItems.length)
+        ? specificItems
+        : (Array.isArray(allOrderItems) ? allOrderItems : []);
+
+      for (const item of finalItems) {
+        await conn.query(
+          `INSERT INTO stock_transactions
+             (transaction_type, store_id, product_id, quantity, source_type, source_id, notes, created_by)
+           VALUES ('STOCK_IN',?,?,?,'INSPECTION_APPROVAL',?,?,?)`,
+          [body.receiving_store_id, item.product_id, item.qty,
+           approvalId, `GRI approved — ${ir.request_number}`, userId]
+        );
+        await conn.query(
+          `INSERT INTO store_inventory (store_id, product_id, quantity)
+           VALUES (?,?,?)
+           ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)`,
+          [body.receiving_store_id, item.product_id, item.qty]
+        );
+      }
+    }
+    // FA — no stock movement, just closes the inspection
+
+    return getRequestById(requestId, conn);
+  });
+};
+
+const rejectInspection = async (requestId, body, userId) => {
+  const ir = await getRequestById(requestId);
+  if (ir.status !== 'pending_approval') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot reject inspection with status "${ir.status}"`);
+  }
+  if (!body.approval_note?.trim()) throw new ApiError(httpStatus.BAD_REQUEST, 'Rejection reason is required');
+
+  await query(
+    `INSERT INTO inspection_approvals
+       (inspection_request_id, approval_status, approval_note, approved_by)
+     VALUES (?,?,?,?)`,
+    [requestId, 'rejected', body.approval_note, userId]
+  );
+  await query(
+    "UPDATE inspection_requests SET status = 'rejected', updated_by = ? WHERE inspection_request_id = ?",
+    [userId, requestId]
+  );
+  return getRequestById(requestId);
+};
+
+const getStoreStock = async (storeId) => {
+  return query(
+    `SELECT si.*, p.product_name, p.sku_barcode, p.product_type,
+            c.name AS category_name, s.store_name, r.region_name
+     FROM store_inventory si
+     JOIN products p ON p.product_id = si.product_id
+     LEFT JOIN product_categories c ON c.category_id = p.category_id
+     JOIN stores s ON s.store_id = si.store_id
+     LEFT JOIN regions r ON r.region_id = s.region_id
+     WHERE si.store_id = ?
+     ORDER BY p.product_name`, [storeId]
+  );
+};
+
+const getStockTransactions = async ({ store_id, product_id, limit = 50 }) => {
+  const where = []; const params = [];
+  if (store_id)   { where.push('st.store_id = ?');   params.push(store_id); }
+  if (product_id) { where.push('st.product_id = ?'); params.push(product_id); }
+  const filter = where.length ? 'WHERE ' + where.join(' AND ') : '';
+  return query(
+    `SELECT st.*, p.product_name, s.store_name, u.full_name AS created_by_name
+     FROM stock_transactions st
+     JOIN products p ON p.product_id = st.product_id
+     JOIN stores   s ON s.store_id   = st.store_id
+     JOIN users    u ON u.user_id    = st.created_by
+     ${filter}
+     ORDER BY st.transaction_date DESC LIMIT ?`,
+    [...params, parseInt(limit, 10)]
+  );
+};
+
+module.exports = {
+  getChecklists, getChecklistById, createChecklist, updateChecklist, deleteChecklist,
+  getRequests, getRequestById, createRequest, updateRequest, cancelRequest, deleteRequest,
+  acceptAssignment, rejectAssignment, uploadAssignmentEvidence, getAssignmentEvidence,
+  getExecutionData, saveResponses, submitInspection,
+  approveInspection, rejectInspection,
+  getStoreStock, getStockTransactions,
 };

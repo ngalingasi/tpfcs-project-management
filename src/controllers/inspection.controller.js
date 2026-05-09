@@ -33,6 +33,38 @@ const rejectAssignment = catchAsync(async (req, res) => {
   res.send(await model.rejectAssignment(req.params.assignmentId, req.user.user_id, req.body.remarks));
 });
 
+// ── Execution ─────────────────────────────────────────────────────────────────
+const getExecutionData = catchAsync(async (req, res) =>
+  res.send(await model.getExecutionData(req.params.id, req.user.user_id)));
+
+const saveResponses = catchAsync(async (req, res) => {
+  const responses = typeof req.body.responses === 'string'
+    ? JSON.parse(req.body.responses)
+    : (req.body.responses ?? []);
+  res.send(await model.saveResponses(req.params.id, responses, req.user.user_id, req.file ?? null));
+});
+
+const submitInspection = catchAsync(async (req, res) =>
+  res.send(await model.submitInspection(req.params.id, req.body, req.user.user_id)));
+
+// ── Approval ──────────────────────────────────────────────────────────────────
+const approveInspection = catchAsync(async (req, res) => {
+  canManage(req.user);
+  res.send(await model.approveInspection(req.params.id, req.body, req.user.user_id));
+});
+
+const rejectInspection = catchAsync(async (req, res) => {
+  canManage(req.user);
+  res.send(await model.rejectInspection(req.params.id, req.body, req.user.user_id));
+});
+
+// ── Stock ──────────────────────────────────────────────────────────────────────
+const getStoreStock = catchAsync(async (req, res) =>
+  res.send(await model.getStoreStock(req.params.storeId)));
+
+const getStockTransactions = catchAsync(async (req, res) =>
+  res.send(await model.getStockTransactions(req.query)));
+
 const uploadEvidence = catchAsync(async (req, res) => {
   if (!req.file) throw new (require('../utils/ApiError'))(400, 'No file uploaded');
   res.status(201).send(await model.uploadAssignmentEvidence(req.params.assignmentId, req.file, req.user.user_id));
@@ -46,4 +78,7 @@ module.exports = {
   listChecklists, getChecklist, createChecklist, updateChecklist, deleteChecklist,
   listRequests, getRequest, createRequest, updateRequest, cancelRequest, deleteRequest,
   acceptAssignment, rejectAssignment, uploadEvidence, getEvidence,
+  getExecutionData, saveResponses, submitInspection,
+  approveInspection, rejectInspection,
+  getStoreStock, getStockTransactions,
 };

@@ -72,6 +72,19 @@ router.route('/requests/:id')
 
 router.post('/requests/:id/cancel', auth('manageInventory'), inspection.cancelRequest);
 
+// ── Execution ─────────────────────────────────────────────────────────────────
+router.get('/requests/:id/execute',   auth(), inspection.getExecutionData);
+router.post('/requests/:id/responses',auth(), upload.single('evidence'), inspection.saveResponses);
+router.post('/requests/:id/submit',   auth(), inspection.submitInspection);
+
+// ── Approval ──────────────────────────────────────────────────────────────────
+router.post('/requests/:id/approve',  auth('manageInventory'), inspection.approveInspection);
+router.post('/requests/:id/reject-approval', auth('manageInventory'), inspection.rejectInspection);
+
+// ── Stock ──────────────────────────────────────────────────────────────────────
+router.get('/stock/:storeId',         auth('getInventory'), inspection.getStoreStock);
+router.get('/stock-transactions',     auth('getInventory'), inspection.getStockTransactions);
+
 // ── Assignments ─────────────────────────────────────────────────────────────
 router.post('/assignments/:assignmentId/accept', auth(), inspection.acceptAssignment);
 router.post('/assignments/:assignmentId/reject', auth(), inspection.rejectAssignment);

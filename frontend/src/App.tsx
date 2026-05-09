@@ -19,10 +19,13 @@ import StoresPage       from "./pages/Inventory/StoresPage";
 import OrdersPage       from "./pages/Inventory/OrdersPage";
 import OrderForm        from "./pages/Inventory/OrderForm";
 import OrderDetail      from "./pages/Inventory/OrderDetail";
+import StockReport      from "./pages/Inventory/StockReport";
 import ChecklistsPage             from "./pages/Inspection/ChecklistsPage";
 import InspectionRequestsPage     from "./pages/Inspection/InspectionRequestsPage";
 import InspectionRequestForm      from "./pages/Inspection/InspectionRequestForm";
 import InspectionRequestDetail    from "./pages/Inspection/InspectionRequestDetail";
+import InspectionExecute           from "./pages/Inspection/InspectionExecute";
+import InspectionApprove           from "./pages/Inspection/InspectionApprove";
 
 // Projects
 import ProjectList        from "./pages/Projects/ProjectList";
@@ -78,6 +81,7 @@ export default function App() {
               <Route path="/inventory/suppliers"    element={<SuppliersPage />} />
               <Route path="/inventory/products"     element={<ProductsPage />} />
               <Route path="/inventory/stores"       element={<StoresPage />} />
+              <Route path="/inventory/stock"        element={<StockReport />} />
               <Route path="/inventory/orders"       element={<OrdersPage />} />
               <Route path="/inventory/orders/new"   element={<OrderForm />} />
               <Route path="/inventory/orders/:id"   element={<OrderDetail />} />
@@ -87,6 +91,8 @@ export default function App() {
               <Route path="/inspection/requests/new"         element={<InspectionRequestForm />} />
               <Route path="/inspection/requests/:id"         element={<InspectionRequestDetail />} />
               <Route path="/inspection/requests/:id/edit"    element={<InspectionRequestForm />} />
+              <Route path="/inspection/requests/:id/execute" element={<InspectionExecute />} />
+              <Route path="/inspection/requests/:id/approve" element={<InspectionApprove />} />
 
               {/* Projects */}
               <Route path="/projects"                  element={<ProjectList />} />
