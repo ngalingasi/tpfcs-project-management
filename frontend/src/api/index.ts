@@ -203,3 +203,26 @@ export const purchaseOrdersApi = {
   cancel: (id: number)   => client.post(`/purchase-orders/${id}/cancel`),
   delete: (id: number)   => client.delete(`/purchase-orders/${id}`),
 };
+
+// ── Inspection API ────────────────────────────────────────────────────────────
+export const inspectionApi = {
+  // Checklists
+  listChecklists:  (params?: any) => client.get('/inspection/checklists', { params }),
+  getChecklist:    (id: number)   => client.get(`/inspection/checklists/${id}`),
+  createChecklist: (data: any)    => client.post('/inspection/checklists', data),
+  updateChecklist: (id: number, data: any) => client.put(`/inspection/checklists/${id}`, data),
+  deleteChecklist: (id: number)   => client.delete(`/inspection/checklists/${id}`),
+  // Requests
+  listRequests:    (params?: any) => client.get('/inspection/requests', { params }),
+  getRequest:      (id: number)   => client.get(`/inspection/requests/${id}`),
+  createRequest:   (data: any)    => client.post('/inspection/requests', data),
+  updateRequest:   (id: number, data: any) => client.put(`/inspection/requests/${id}`, data),
+  cancelRequest:   (id: number)   => client.post(`/inspection/requests/${id}/cancel`),
+  deleteRequest:   (id: number)   => client.delete(`/inspection/requests/${id}`),
+  // Assignments
+  acceptAssignment:   (id: number, remarks?: string) => client.post(`/inspection/assignments/${id}/accept`, { remarks }),
+  rejectAssignment:   (id: number, remarks: string)  => client.post(`/inspection/assignments/${id}/reject`, { remarks }),
+  getEvidence:        (assignmentId: number)          => client.get(`/inspection/assignments/${assignmentId}/evidence`),
+  uploadEvidence:     (assignmentId: number, formData: FormData) =>
+    client.post(`/inspection/assignments/${assignmentId}/evidence`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+};

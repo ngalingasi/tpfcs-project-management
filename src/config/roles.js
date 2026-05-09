@@ -3,14 +3,16 @@ const allRoles = {
     'getProjects',
     'getActivities',
     'updateActivity',
-    'getInventory',   // viewer — read only
+    'getInventory',    // viewer
+    'getInspection',   // read only
   ],
   manager: [
     'getProjects',   'manageProjects',
     'getActivities', 'manageActivities', 'updateActivity',
     'getUsers',
     'getSectors',    'getRegions', 'getImplementers',
-    'getInventory',  // project manager — view only
+    'getInventory',   'manageInventory',
+    'getInspection',  'manageInspection', // PM can create inspections
   ],
   admin: [
     'getUsers',        'manageUsers',
@@ -19,7 +21,8 @@ const allRoles = {
     'getSectors',      'manageSectors',
     'getRegions',      'manageRegions',
     'getImplementers', 'manageImplementers',
-    'getInventory',    'manageInventory',   // full inventory access
+    'getInventory',    'manageInventory',
+    'getInspection',  'manageInspection',   // full inspection access
   ],
 };
 
