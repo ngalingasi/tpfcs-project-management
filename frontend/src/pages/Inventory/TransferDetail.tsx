@@ -199,11 +199,18 @@ export default function TransferDetail() {
                 </button>
               )}
               {Number(transfer.requires_transit) === 1 && !['cancelled','closed'].includes(transfer.status) && (
-                <button onClick={() => setShowShipmentModal(true)}
-                  className="px-4 py-2 text-sm bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                  Create Shipment
-                </button>
+                shipments.length > 0 ? (
+                  <div className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                    Shipment Created
+                  </div>
+                ) : (
+                  <button onClick={() => setShowShipmentModal(true)}
+                    className="px-4 py-2 text-sm bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                    Create Shipment
+                  </button>
+                )
               )}
               {transfer.status === 'received' && (
                 <button onClick={() => action('closed', () => (transfersApi as any).close(Number(id)), 'Close this transfer? This is final.')} disabled={!!acting}
@@ -381,13 +388,27 @@ export default function TransferDetail() {
             {logCos.length === 0 ? (
               <p className="text-sm text-orange-500">No logistics companies found. <a href="/logistics/companies" className="underline">Add one first</a>.</p>
             ) : (
-              <select value={shipLogCoId} onChange={e => setShipLogCoId(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400">
-                <option value="">— Select provider —</option>
-                {logCos.map((lc: any) => (
-                  <option key={lc.logistics_company_id} value={lc.logistics_company_id}>{lc.company_name} ({lc.company_type})</option>
-                ))}
-              </select>
+              <>
+                <select value={shipLogCoId} onChange={e => setShipLogCoId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400">
+                  <option value="">— Select provider —</option>
+                  {logCos.map((lc: any) => (
+                    <option key={lc.logistics_company_id} value={lc.logistics_company_id}>{lc.company_name} ({lc.company_type})</option>
+                  ))}
+                </select>
+                {shipLogCoId && (() => {
+                  const selected = logCos.find((lc: any) => lc.logistics_company_id === Number(shipLogCoId));
+                  return selected ? (
+                    <div className="mt-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-3 py-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      <div>
+                        <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">{selected.company_name}</p>
+                        <p className="text-[10px] text-indigo-500 dark:text-indigo-400">{selected.company_type}{selected.city ? ` · ${selected.city}` : ''}</p>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+              </>
             )}
           </div>
 
