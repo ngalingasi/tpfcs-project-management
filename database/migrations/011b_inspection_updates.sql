@@ -2,17 +2,22 @@
 
 -- 1. Add require_evidence_on_acceptance to inspection_requests
 ALTER TABLE `inspection_requests`
-  ADD COLUMN IF NOT EXISTS `require_evidence_on_acceptance` TINYINT(1) NOT NULL DEFAULT 0
+  ADD COLUMN `require_evidence_on_acceptance` TINYINT(1) NOT NULL DEFAULT 0
     COMMENT 'If true, assigned staff must upload evidence before accepting'
-    AFTER `requires_evidence_upload`,
-  ADD COLUMN IF NOT EXISTS `location_region_id` INT(11) DEFAULT NULL
-    COMMENT 'FK to regions table — used when inspection is inside Tanzania'
-    AFTER `location_region`,
-  ADD COLUMN IF NOT EXISTS `location_city` VARCHAR(100) DEFAULT NULL
-    COMMENT 'City name for international locations'
-    AFTER `location_region_id`,
-  ADD KEY IF NOT EXISTS `idx_ir_region_id` (`location_region_id`);
+    AFTER `requires_evidence_upload`;
 
+ALTER TABLE `inspection_requests`
+  ADD COLUMN `location_region_id` INT(11) DEFAULT NULL
+    COMMENT 'FK to regions table — used when inspection is inside Tanzania'
+    AFTER `location_region`;
+
+ALTER TABLE `inspection_requests`
+  ADD COLUMN `location_city` VARCHAR(100) DEFAULT NULL
+    COMMENT 'City name for international locations'
+    AFTER `location_region_id`;
+
+ALTER TABLE `inspection_requests`
+  ADD INDEX `idx_ir_region_id` (`location_region_id`);
 -- 2. Add assignment evidence table
 CREATE TABLE IF NOT EXISTS `assignment_evidence` (
   `assignment_evidence_id` INT(11)      NOT NULL AUTO_INCREMENT,

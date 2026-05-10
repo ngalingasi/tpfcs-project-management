@@ -3,8 +3,17 @@
 -- ── 1. Update inspection_requests status ENUM ─────────────────────────────────
 ALTER TABLE `inspection_requests`
   MODIFY COLUMN `status`
-    ENUM('draft','pending_acceptance','scheduled','active',
-         'inspected','pending_approval','approved','rejected','cancelled')
+    ENUM(
+      'draft',
+      'pending_acceptance',
+      'scheduled',
+      'active',
+      'inspected',
+      'pending_approval',
+      'approved',
+      'rejected',
+      'cancelled'
+    )
     NOT NULL DEFAULT 'draft';
 
 -- ── 2. Inspection Responses (checklist answers) ───────────────────────────────
@@ -32,12 +41,25 @@ CREATE TABLE IF NOT EXISTS `inspection_responses` (
 
 -- Add execution fields to inspection_requests
 ALTER TABLE `inspection_requests`
-  ADD COLUMN IF NOT EXISTS `general_remarks`      TEXT         DEFAULT NULL AFTER `request_notes`,
-  ADD COLUMN IF NOT EXISTS `recommendation`       ENUM('approved','conditional','rejected')
-                                                  DEFAULT NULL AFTER `general_remarks`,
-  ADD COLUMN IF NOT EXISTS `submitted_at`         TIMESTAMP    NULL DEFAULT NULL AFTER `recommendation`,
-  ADD COLUMN IF NOT EXISTS `submitted_by`         INT(11)      DEFAULT NULL AFTER `submitted_at`;
+  ADD COLUMN `general_remarks` TEXT DEFAULT NULL
+  AFTER `request_notes`;
 
+ALTER TABLE `inspection_requests`
+  ADD COLUMN `recommendation`
+    ENUM('approved','conditional','rejected')
+    DEFAULT NULL
+  AFTER `general_remarks`;
+
+ALTER TABLE `inspection_requests`
+  ADD COLUMN `submitted_at`
+    TIMESTAMP NULL DEFAULT NULL
+  AFTER `recommendation`;
+
+ALTER TABLE `inspection_requests`
+  ADD COLUMN `submitted_by`
+    INT(11) DEFAULT NULL
+  AFTER `submitted_at`;
+  
 -- ── 3. Inspection Approvals ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `inspection_approvals` (
   `inspection_approval_id` INT(11)      NOT NULL AUTO_INCREMENT,
