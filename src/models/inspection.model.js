@@ -143,13 +143,15 @@ const IR_BASE = `
   LEFT JOIN stores ds           ON ds.store_id = ir.destination_store_id
   WHERE ir.deleted_at IS NULL`;
 
-const getRequests = async ({ page, limit, search, inspection_type, status, project_id }) => {
+const getRequests = async ({ page, limit, search, inspection_type, status, project_id, source_type, source_id }) => {
   const { limit: l, offset, paginate } = buildPagination(page, limit);
   const where = []; const params = [];
   if (search)          { where.push('(ir.request_number LIKE ? OR ir.location_name LIKE ?)'); const q = `%${search}%`; params.push(q, q); }
   if (inspection_type) { where.push('ir.inspection_type = ?'); params.push(inspection_type); }
   if (status)          { where.push('ir.status = ?');          params.push(status); }
   if (project_id)      { where.push('ir.project_id = ?');      params.push(parseInt(project_id, 10)); }
+  if (source_type)     { where.push('ir.source_type = ?');     params.push(source_type); }
+  if (source_id)       { where.push('ir.source_id = ?');       params.push(parseInt(source_id, 10)); }
   const filter = where.length ? ' AND ' + where.join(' AND ') : '';
 
   const [countRow] = await query(

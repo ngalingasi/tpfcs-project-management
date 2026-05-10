@@ -46,12 +46,20 @@ export default function TransferDetail() {
   const { user }  = useAuth();
   const canManage = ['admin','manager'].includes(user?.role ?? '');
 
-  const [transfer, setTransfer] = useState<any>(null);
+  const [transfer,    setTransfer]    = useState<any>(null);
+  const [hasInspection, setHasInspection] = useState(false);
   const [loading,  setLoading]  = useState(true);
   const [acting,   setActing]   = useState<string|null>(null);
 
-  const load = () => transfersApi.get(Number(id))
-    .then(r => setTransfer(r.data)).catch(() => {}).finally(() => setLoading(false));
+  const load = () => transfersApi.get(Number(id)).then(r => {
+    setTransfer(r.data);
+    // Check if inspection already exists for this transfer
+    import('../../api').then(m =>
+      m.inspectionApi.listRequests({ limit: 1, source_type: 'TRANSFER', source_id: Number(id) })
+        .then((ir: any) => setHasInspection((ir.data.totalResults ?? 0) > 0))
+        .catch(() => {})
+    );
+  }).catch(() => {}).finally(() => setLoading(false));
 
   useEffect(() => { if (id) load(); }, [id]);
 
@@ -131,7 +139,7 @@ export default function TransferDetail() {
                   {acting === 'dispatched' ? 'Dispatching...' : 'Dispatch'}
                 </button>
               )}
-              {transfer.status === 'dispatched' && transfer.requires_inspection && (
+              {transfer.status === 'dispatched' && Number(transfer.requires_inspection) === 1 && !hasInspection && (
                 <button onClick={() => navigate(`/inspection/requests/new?source_type=TRANSFER&source_id=${id}`)}
                   className="px-4 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
@@ -236,16 +244,17 @@ export default function TransferDetail() {
       </Section>
 
       {/* Transit info — only show if enabled AND has actual data */}
-      {transfer.requires_transit && (
+      {Number(transfer.requires_transit) === 1 && (
         <Section title="Transit / Logistics">
           {(() => {
+            const notEmpty = (v: any) => v !== null && v !== undefined && v !== '' && v !== '0' && v !== '0000-00-00';
             const fields = [
-              { label: 'Method',           value: transfer.transit_method || null },
-              { label: 'Provider',         value: transfer.transit_provider || null },
-              { label: 'Tracking #',       value: transfer.tracking_number || null },
-              { label: 'Expected Arrival', value: transfer.expected_arrival_date ? fmtDate(transfer.expected_arrival_date) : null },
-              { label: 'Vehicle',          value: transfer.vehicle_information || null },
-              { label: 'Driver',           value: transfer.driver_information || null },
+              { label: 'Method',           value: notEmpty(transfer.transit_method)         ? String(transfer.transit_method) : null },
+              { label: 'Provider',         value: notEmpty(transfer.transit_provider)        ? String(transfer.transit_provider) : null },
+              { label: 'Tracking #',       value: notEmpty(transfer.tracking_number)         ? String(transfer.tracking_number) : null },
+              { label: 'Expected Arrival', value: notEmpty(transfer.expected_arrival_date)   ? fmtDate(transfer.expected_arrival_date) : null },
+              { label: 'Vehicle',          value: notEmpty(transfer.vehicle_information)     ? String(transfer.vehicle_information) : null },
+              { label: 'Driver',           value: notEmpty(transfer.driver_information)      ? String(transfer.driver_information) : null },
             ].filter(f => f.value !== null);
             return fields.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
