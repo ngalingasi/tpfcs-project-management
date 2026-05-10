@@ -247,6 +247,7 @@ export const transfersApi = {
   approve:  (id: number)   => client.post(`/transfers/${id}/approve`),
   dispatch: (id: number)   => client.post(`/transfers/${id}/dispatch`),
   receive:  (id: number)   => client.post(`/transfers/${id}/receive`),
+  close:         (id: number)         => client.post(`/transfers/${id}/close`),
   cancel:        (id: number)         => client.post(`/transfers/${id}/cancel`),
   getStoreStock: (storeId: number)     => client.get(`/transfers/store-stock/${storeId}`),
 };

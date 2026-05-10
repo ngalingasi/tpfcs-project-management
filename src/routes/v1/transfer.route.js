@@ -47,6 +47,7 @@ router.route('/:id').get(auth('getInventory'), transfer.get).put(auth('manageInv
 router.post('/:id/approve',   auth('manageInventory'), transfer.approve);
 router.post('/:id/dispatch',  auth('manageInventory'), transfer.dispatch);
 router.post('/:id/receive',   auth('manageInventory'), transfer.receive);
+router.post('/:id/close',     auth('manageInventory'), transfer.close);
 router.post('/:id/cancel',    auth('manageInventory'), transfer.cancel);
 
 module.exports = router;

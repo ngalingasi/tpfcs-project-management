@@ -227,14 +227,25 @@ const createRequest = async (body, userId) => {
 
     const [result] = await conn.query(
       `INSERT INTO inspection_requests
-         (request_number, inspection_type, project_id, purchase_order_id, checklist_id,
-          location_name, location_address, location_country, location_region, latitude, longitude,
-          inspection_date, inspection_time, requires_evidence_upload, request_notes, status, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [requestNumber, inspection_type, project_id, purchase_order_id, checklist_id,
-       location_name, location_address, location_country, location_region, latitude, longitude,
-       inspection_date, inspection_time, requires_evidence_upload ? 1 : 0, request_notes,
-       status, userId]
+         (request_number, inspection_type, project_id, purchase_order_id,
+          source_type, source_id, destination_store_id,
+          checklist_id,
+          location_name, location_address, location_country, location_region,
+          location_region_id, location_city,
+          latitude, longitude,
+          inspection_date, inspection_time,
+          requires_evidence_upload, require_evidence_on_acceptance,
+          request_notes, status, created_by)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [requestNumber, inspection_type, project_id, purchase_order_id || null,
+       source_type || 'ORDER', source_id || null, destination_store_id || null,
+       checklist_id,
+       location_name, location_address, location_country, location_region,
+       location_region_id || null, location_city || null,
+       latitude, longitude,
+       inspection_date, inspection_time,
+       requires_evidence_upload ? 1 : 0, require_evidence_on_acceptance ? 1 : 0,
+       request_notes, status, userId]
     );
     const irId = result.insertId;
 
@@ -264,11 +275,14 @@ const updateRequest = async (id, body, userId) => {
   if (ir.status === 'completed') throw new ApiError(httpStatus.BAD_REQUEST, 'Completed inspections are read-only');
 
   return transaction(async (conn) => {
-    const allowed = ['inspection_type','project_id','purchase_order_id','source_type','source_id','destination_store_id','checklist_id',
+    const allowed = ['inspection_type','project_id','purchase_order_id',
+                     'source_type','source_id','destination_store_id',
+                     'checklist_id',
                      'location_name','location_address','location_country','location_region',
                      'location_region_id','location_city','latitude','longitude',
                      'inspection_date','inspection_time',
-                     'requires_evidence_upload','require_evidence_on_acceptance','request_notes','status'];
+                     'requires_evidence_upload','require_evidence_on_acceptance',
+                     'request_notes','status'];
     const fields = Object.keys(body).filter(k => allowed.includes(k));
     if (fields.length) {
       const set = fields.map(f => `${f} = ?`).join(', ');
@@ -537,19 +551,20 @@ const approveInspection = async (requestId, body, userId) => {
 
     // 3a. GRI — stock in from order items
     if (isGRI && body.receiving_store_id) {
-      const [specificItems] = await conn.query(
+      const exec = (s, p) => conn.query(s, p).then(([r]) => r);
+      const specificItems = await exec(
         `SELECT poi.product_id, SUM(poi.quantity) AS qty
          FROM inspection_request_items iri
          JOIN purchase_order_items poi ON poi.item_id = iri.purchase_order_item_id
          WHERE iri.inspection_request_id = ? GROUP BY poi.product_id`, [requestId]
       );
-      const [allOrderItems] = await conn.query(
+      const allOrderItems = ir.purchase_order_id ? await exec(
         `SELECT poi.product_id, SUM(poi.quantity) AS qty
          FROM purchase_order_items poi WHERE poi.purchase_order_id = ?
          GROUP BY poi.product_id`, [ir.purchase_order_id]
-      );
-      const finalItems = (Array.isArray(specificItems) && specificItems.length)
-        ? specificItems : (Array.isArray(allOrderItems) ? allOrderItems : []);
+      ) : [];
+      const finalItems = (specificItems && specificItems.length)
+        ? specificItems : (allOrderItems || []);
       for (const item of finalItems) {
         await conn.query(
           `INSERT INTO stock_transactions (transaction_type, store_id, product_id, quantity, source_type, source_id, notes, created_by)

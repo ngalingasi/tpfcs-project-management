@@ -14,6 +14,7 @@ const update   = catchAsync(async (req, res) => { canManage(req.user); res.send(
 const approve  = catchAsync(async (req, res) => { canManage(req.user); res.send(await transferModel.approveTransfer(req.params.id, req.user.user_id)); });
 const dispatch = catchAsync(async (req, res) => { canManage(req.user); res.send(await transferModel.dispatchTransfer(req.params.id, req.user.user_id)); });
 const receive  = catchAsync(async (req, res) => { canManage(req.user); res.send(await transferModel.receiveTransfer(req.params.id, null, req.user.user_id)); });
+const close    = catchAsync(async (req, res) => { canManage(req.user); res.send(await transferModel.closeTransfer(req.params.id, req.user.user_id)); });
 const cancel   = catchAsync(async (req, res) => { canManage(req.user); res.send(await transferModel.cancelTransfer(req.params.id, req.user.user_id)); });
 
-module.exports = { list, get, create, update, approve, dispatch, receive, cancel };
+module.exports = { list, get, create, update, approve, dispatch, receive, close, cancel };

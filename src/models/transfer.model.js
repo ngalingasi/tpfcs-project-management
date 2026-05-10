@@ -236,4 +236,13 @@ const cancelTransfer = async (id, userId) => {
   return getTransferById(id);
 };
 
-module.exports = { getTransfers, getTransferById, createTransfer, updateTransfer, approveTransfer, dispatchTransfer, receiveTransfer, cancelTransfer };
+const closeTransfer = async (id, userId) => {
+  const t = await getTransferById(id);
+  if (t.status !== 'received') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Only received transfers can be closed');
+  }
+  await query("UPDATE stock_transfers SET status='closed', updated_by=? WHERE transfer_id=?", [userId, id]);
+  return getTransferById(id);
+};
+
+module.exports = { getTransfers, getTransferById, createTransfer, updateTransfer, approveTransfer, dispatchTransfer, receiveTransfer, closeTransfer, cancelTransfer };

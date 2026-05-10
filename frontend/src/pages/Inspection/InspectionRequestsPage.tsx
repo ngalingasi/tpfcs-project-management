@@ -76,7 +76,7 @@ export default function InspectionRequestsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                {['Request #','Type','Order','Location','Date','Checklist','Assignees','Status',''].map(h => (
+                {['Request #','Type','Source','Reference','Location','Date','Status',''].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{h}</th>
                 ))}
               </tr>
@@ -93,24 +93,52 @@ export default function InspectionRequestsPage() {
                   <td className="px-4 py-3">
                     <span className="font-mono text-xs font-semibold text-brand-600 dark:text-brand-400">{ir.request_number}</span>
                   </td>
+                  {/* Type badge */}
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${ir.inspection_type === 'FA' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'}`}>
                       {ir.inspection_type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-400">{ir.order_number}</td>
+
+                  {/* Source type */}
+                  <td className="px-4 py-3">
+                    {ir.source_type === 'TRANSFER' ? (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 flex items-center gap-1 w-fit">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                        Transfer
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 flex items-center gap-1 w-fit">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        Order
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Reference — order number or transfer number */}
+                  <td className="px-4 py-3">
+                    {ir.source_type === 'TRANSFER' ? (
+                      <div>
+                        <p className="font-mono text-xs font-semibold text-orange-600 dark:text-orange-400">{ir.transfer_number ?? '—'}</p>
+                        {ir.source_store_name && <p className="text-[10px] text-gray-400">{ir.source_store_name} → {ir.destination_store_name}</p>}
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-mono text-xs font-semibold text-brand-600 dark:text-brand-400">{ir.order_number ?? '—'}</p>
+                        {ir.supplier_name && <p className="text-[10px] text-gray-400">{ir.supplier_name}</p>}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Location */}
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-700 dark:text-gray-300 text-xs">{ir.location_name}</p>
                     {ir.location_country && <p className="text-xs text-gray-400">{ir.location_country}</p>}
                   </td>
+
+                  {/* Date */}
                   <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
                     {new Date(ir.inspection_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 max-w-[120px] truncate">{ir.checklist_name}</td>
-                  <td className="px-4 py-3">
-                    {ir.assignment_count > 0 ? (
-                      <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{ir.assignment_count} assigned</span>
-                    ) : <span className="text-xs text-gray-400">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full capitalize ${STATUS_STYLES[ir.status]}`}>
