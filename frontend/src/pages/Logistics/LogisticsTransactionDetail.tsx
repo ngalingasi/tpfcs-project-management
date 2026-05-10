@@ -237,6 +237,48 @@ export default function LogisticsTransactionDetail() {
           </div>
         )}
 
+        {/* Cost section */}
+        {(notEmpty(txn.shipment_cost) || notEmpty(txn.payment_status)) && (
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Shipment Cost</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              {notEmpty(txn.shipment_cost) && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Cost</p>
+                  <p className="font-bold text-gray-800 dark:text-white">
+                    {Number(txn.shipment_cost).toLocaleString()} {txn.currency_code}
+                  </p>
+                </div>
+              )}
+              {txn.currency_code !== 'TZS' && notEmpty(txn.base_cost_tzs) && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Cost (TZS)</p>
+                  <p className="font-bold text-gray-800 dark:text-white">TZS {Number(txn.base_cost_tzs).toLocaleString()}</p>
+                  <p className="text-xs text-gray-400">@ {txn.exchange_rate} rate</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">Payment Status</p>
+                <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full capitalize ${
+                  txn.payment_status === 'paid'           ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
+                  txn.payment_status === 'partially_paid' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' :
+                  txn.payment_status === 'cancelled'      ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' :
+                  'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                }`}>{txn.payment_status?.replace(/_/g,' ') || 'Pending'}</span>
+              </div>
+              {notEmpty(txn.payment_reference) && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Payment Ref</p>
+                  <p className="font-mono text-sm text-gray-700 dark:text-gray-300">{txn.payment_reference}</p>
+                </div>
+              )}
+            </div>
+            {notEmpty(txn.expense_notes) && (
+              <p className="text-xs text-gray-400 mt-2">{txn.expense_notes}</p>
+            )}
+          </div>
+        )}
+
         {notEmpty(txn.shipment_description) && (
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800"><p className="text-xs text-gray-400 mb-1">Description</p><p className="text-sm text-gray-600 dark:text-gray-400">{txn.shipment_description}</p></div>
         )}

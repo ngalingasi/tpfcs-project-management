@@ -135,23 +135,32 @@ const createTransaction = async (body, userId) => {
     pickup_location, delivery_location, pickup_date = null, dispatch_date = null,
     expected_delivery_date = null, transit_notes = null,
     vehicle_information = null, driver_information = null, status = 'draft',
+    shipment_cost = null, currency_code = 'TZS', exchange_rate = 1,
+    payment_status = 'pending', payment_reference = null, expense_notes = null,
   } = body;
 
   await getCompanyById(logistics_company_id); // validate company exists
 
   const logisticsNumber = await generateLogisticsNumber();
+  const baseCostTzs = shipment_cost ? parseFloat(shipment_cost) * parseFloat(exchange_rate) : null;
+
   const result = await query(
     `INSERT INTO logistics_transactions
        (logistics_number, source_type, stock_transfer_id, logistics_company_id,
         tracking_number, external_reference_number, shipment_description,
         pickup_location, delivery_location, pickup_date, dispatch_date,
         expected_delivery_date, transit_notes, vehicle_information, driver_information,
+        shipment_cost, currency_code, exchange_rate, base_cost_tzs,
+        payment_status, payment_reference, expense_notes,
         status, created_by)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [logisticsNumber, source_type, stock_transfer_id || null, logistics_company_id,
      tracking_number, external_reference_number, shipment_description,
      pickup_location, delivery_location, pickup_date, dispatch_date,
      expected_delivery_date, transit_notes, vehicle_information, driver_information,
+     shipment_cost || null, currency_code, exchange_rate,
+     baseCostTzs,
+     payment_status, payment_reference || null, expense_notes || null,
      status, userId]
   );
 
@@ -172,7 +181,9 @@ const updateTransaction = async (id, body, userId) => {
   const allowed = ['source_type','stock_transfer_id','logistics_company_id','tracking_number',
                    'external_reference_number','shipment_description','pickup_location','delivery_location',
                    'pickup_date','dispatch_date','expected_delivery_date','transit_notes',
-                   'vehicle_information','driver_information'];
+                   'vehicle_information','driver_information',
+                   'shipment_cost','currency_code','exchange_rate','base_cost_tzs',
+                   'payment_status','payment_reference','expense_notes'];
   const fields = Object.keys(body).filter(k => allowed.includes(k));
   if (fields.length) {
     const set = fields.map(f => `${f} = ?`).join(', ');

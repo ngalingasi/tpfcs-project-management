@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { transfersApi, storesApi, productsApi } from '../../api';
+import { transfersApi, storesApi, productsApi, logisticsApi } from '../../api';
 import Modal from '../../components/tpfcs/Modal';
 import { FormDateInput } from '../../components/tpfcs/FormField';
 import { toast } from '../../components/tpfcs/Toast';
@@ -24,8 +24,8 @@ let _uid = 0; const uid = () => ++_uid;
 interface StockMap { [productId: number]: { quantity: number; product_name: string; sku_barcode: string; unit_type: string } }
 
 // ── Transfer Form ─────────────────────────────────────────────────────────────
-function TransferForm({ transfer, stores, products, onSaved, onClose }: {
-  transfer?: any; stores: any[]; products: any[];
+function TransferForm({ transfer, stores, products, logisticsCompanies, onSaved, onClose }: {
+  transfer?: any; stores: any[]; products: any[]; logisticsCompanies: any[];
   onSaved: ()=>void; onClose: ()=>void;
 }) {
   const isEdit = !!transfer;
@@ -44,6 +44,7 @@ function TransferForm({ transfer, stores, products, onSaved, onClose }: {
   const [vehicleInfo, setVehicleInfo] = useState(transfer?.vehicle_information ?? '');
   const [driverInfo, setDriverInfo]   = useState(transfer?.driver_information ?? '');
   const [logisticsNotes, setLogisticsNotes] = useState(transfer?.logistics_notes ?? '');
+  const [logisticsCompanyId, setLogisticsCompanyId] = useState(transfer?.logistics_company_id?.toString() ?? '');
 
   // Items
   const [items, setItems] = useState<{_key:number;product_id:string;quantity:string;notes:string}[]>(
@@ -112,6 +113,7 @@ function TransferForm({ transfer, stores, products, onSaved, onClose }: {
         items: validItems.map(i => ({ product_id: Number(i.product_id), quantity: parseFloat(i.quantity), notes: i.notes || null })),
       };
       if (reqTransit) {
+        payload.logistics_company_id = logisticsCompanyId ? Number(logisticsCompanyId) : null;
         Object.assign(payload, {
           transit_method: transitMethod || null, transit_provider: transitProvider || null,
           tracking_number: trackingNo || null, expected_arrival_date: arrivalDate || null,
@@ -179,17 +181,41 @@ function TransferForm({ transfer, stores, products, onSaved, onClose }: {
       {reqTransit && (
         <div className="rounded-lg border border-brand-200 dark:border-brand-500/30 bg-brand-50/30 dark:bg-brand-500/5 p-4 space-y-3">
           <p className="text-xs font-semibold text-brand-700 dark:text-brand-400 mb-1">Transit / Logistics Details</p>
+
+          {/* Provider from Logistics Companies */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Logistics Provider / Carrier <span className="text-red-500">*</span>
+              <span className="ml-1 text-[10px] font-normal text-gray-400">— from Logistics module</span>
+            </label>
+            {logisticsCompanies.length === 0 ? (
+              <div className="rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 p-3 text-xs text-orange-700 dark:text-orange-400">
+                No logistics companies found.{' '}
+                <a href="/logistics/companies" target="_blank" className="underline font-medium">Add one in the Logistics module</a> first.
+              </div>
+            ) : (
+              <select value={logisticsCompanyId} onChange={e => setLogisticsCompanyId(e.target.value)} className={inputCls}>
+                <option value="">— Select provider —</option>
+                {logisticsCompanies.map((lc: any) => (
+                  <option key={lc.logistics_company_id} value={lc.logistics_company_id}>
+                    {lc.company_name} — {lc.company_type}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Transit Method <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Transit Method</label>
               <select value={transitMethod} onChange={e => setTransitMethod(e.target.value)} className={inputCls}>
                 <option value="">Select method...</option>
                 {TRANSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Provider / Carrier</label>
-              <input value={transitProvider} onChange={e => setTransitProvider(e.target.value)} placeholder="e.g. DHL, Tanzania Posts, Raha Freight" className={inputCls}/>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Provider Reference</label>
+              <input value={transitProvider} onChange={e => setTransitProvider(e.target.value)} placeholder="Account / booking reference" className={inputCls}/>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Tracking Number</label>
@@ -328,8 +354,9 @@ export default function TransfersPage() {
   const canManage = ['admin','manager'].includes(user?.role ?? '');
 
   const [data,     setData]     = useState<any>(null);
-  const [stores,   setStores]   = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [stores,          setStores]          = useState<any[]>([]);
+  const [products,        setProducts]        = useState<any[]>([]);
+  const [logisticsCompanies, setLogisticsCompanies] = useState<any[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState('');
   const [statusF,  setStatusF]  = useState('');
@@ -351,7 +378,8 @@ export default function TransfersPage() {
     Promise.all([
       storesApi.list({ limit:100, status:'active' }),
       productsApi.list({ limit:500, status:'active' }),
-    ]).then(([s, p]) => { setStores(s.data.results); setProducts(p.data.results); }).catch(()=>{});
+      logisticsApi.listCompanies({ limit:100, status:'active' }),
+    ]).then(([s, p, lc]) => { setStores(s.data.results); setProducts(p.data.results); setLogisticsCompanies(lc.data.results); }).catch(()=>{});
   }, []);
 
   const action = async (id: number, fn: ()=>Promise<any>, label: string) => {
@@ -478,10 +506,10 @@ export default function TransfersPage() {
       </div>
 
       <Modal isOpen={modal==='create'} onClose={() => setModal(null)} title="New Stock Transfer" size="xl">
-        <TransferForm stores={stores} products={products} onSaved={load} onClose={() => setModal(null)}/>
+        <TransferForm stores={stores} products={products} logisticsCompanies={logisticsCompanies} onSaved={load} onClose={() => setModal(null)}/>
       </Modal>
       <Modal isOpen={modal==='edit' && !!selected} onClose={() => setModal(null)} title="Edit Transfer" size="xl">
-        {selected && <TransferForm key={selected.transfer_id} transfer={selected} stores={stores} products={products} onSaved={load} onClose={() => setModal(null)}/>}
+        {selected && <TransferForm key={selected.transfer_id} transfer={selected} stores={stores} products={products} logisticsCompanies={logisticsCompanies} onSaved={load} onClose={() => setModal(null)}/>}
       </Modal>
     </div>
   );

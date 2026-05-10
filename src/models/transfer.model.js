@@ -20,13 +20,15 @@ const BASE = `
   SELECT t.*,
          ss.store_name AS source_store_name,     sr.region_name AS source_region,
          ds.store_name AS destination_store_name, dr.region_name AS destination_region,
-         u.full_name   AS created_by_name
+         u.full_name   AS created_by_name,
+         lc.company_name AS logistics_company_name, lc.company_type AS logistics_company_type
   FROM stock_transfers t
   JOIN stores ss ON ss.store_id = t.source_store_id
   LEFT JOIN regions sr ON sr.region_id = ss.region_id
   JOIN stores ds ON ds.store_id = t.destination_store_id
   LEFT JOIN regions dr ON dr.region_id = ds.region_id
   LEFT JOIN users u ON u.user_id = t.created_by
+  LEFT JOIN logistics_companies lc ON lc.logistics_company_id = t.logistics_company_id
   WHERE t.deleted_at IS NULL`;
 
 // ── List ──────────────────────────────────────────────────────────────────────
@@ -67,7 +69,8 @@ const createTransfer = async (body, userId) => {
     const {
     source_store_id, destination_store_id, transfer_date, notes = null,
     requires_inspection = 1,
-    requires_transit = 0, transit_method = null, transit_provider = null,
+    requires_transit = 0, logistics_company_id = null,
+    transit_method = null, transit_provider = null,
     tracking_number = null, expected_arrival_date = null,
     vehicle_information = null, driver_information = null, logistics_notes = null,
     items = [],
@@ -124,7 +127,7 @@ const updateTransfer = async (id, body, userId) => {
   if (!['draft','approved'].includes(t.status)) throw new ApiError(httpStatus.BAD_REQUEST, `Cannot edit transfer with status "${t.status}"`);
 
   return transaction(async (conn) => {
-    const allowed = ['source_store_id','destination_store_id','transfer_date','notes','requires_inspection','requires_transit','transit_method','transit_provider','tracking_number','expected_arrival_date','vehicle_information','driver_information','logistics_notes'];
+    const allowed = ['source_store_id','destination_store_id','transfer_date','notes','requires_inspection','requires_transit','logistics_company_id','transit_method','transit_provider','tracking_number','expected_arrival_date','vehicle_information','driver_information','logistics_notes'];
     const fields  = Object.keys(body).filter(k => allowed.includes(k));
     if (fields.length) {
       const set = fields.map(f => `${f} = ?`).join(', ');

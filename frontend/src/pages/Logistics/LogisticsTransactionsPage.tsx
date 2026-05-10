@@ -45,6 +45,12 @@ function TransactionForm({ companies, transfers, txn, onSaved, onClose }: {
     transit_notes:             txn?.transit_notes             ?? '',
     vehicle_information:       txn?.vehicle_information       ?? '',
     driver_information:        txn?.driver_information        ?? '',
+    shipment_cost:             txn?.shipment_cost?.toString() ?? '',
+    currency_code:             txn?.currency_code             ?? 'TZS',
+    exchange_rate:             txn?.exchange_rate?.toString() ?? '1',
+    payment_status:            txn?.payment_status            ?? 'pending',
+    payment_reference:         txn?.payment_reference         ?? '',
+    expense_notes:             txn?.expense_notes             ?? '',
   });
   const [saving, setSaving]   = useState(false);
   const [error,  setError]    = useState('');
@@ -75,8 +81,15 @@ function TransactionForm({ companies, transfers, txn, onSaved, onClose }: {
       payload.stock_transfer_id    = form.stock_transfer_id ? Number(form.stock_transfer_id) : null;
       // Nullify empty strings
       ['tracking_number','external_reference_number','shipment_description','transit_notes',
-       'vehicle_information','driver_information','pickup_date','expected_delivery_date'
+       'vehicle_information','driver_information','pickup_date','expected_delivery_date',
+       'shipment_cost','payment_reference','expense_notes',
       ].forEach(k => { if (!payload[k]) payload[k] = null; });
+      // Numeric conversions
+      if (payload.shipment_cost) payload.shipment_cost = Number(payload.shipment_cost);
+      if (payload.exchange_rate) payload.exchange_rate = Number(payload.exchange_rate);
+      if (payload.shipment_cost && payload.exchange_rate) {
+        payload.base_cost_tzs = payload.shipment_cost * payload.exchange_rate;
+      }
 
       if (isEdit) await logisticsApi.updateTransaction(txn.logistics_transaction_id, payload);
       else        await logisticsApi.createTransaction(payload);
@@ -173,6 +186,61 @@ function TransactionForm({ companies, transfers, txn, onSaved, onClose }: {
       <div>
         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Transit Notes</label>
         <textarea rows={2} value={form.transit_notes} onChange={e => set('transit_notes', e.target.value)} placeholder="Route notes, customs, etc." className={inputCls + ' resize-none'}/>
+      </div>
+
+      {/* Cost / Expense section */}
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Shipment Cost & Payment</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Currency</label>
+            <select value={form.currency_code} onChange={e => set('currency_code', e.target.value)} className={inputCls}>
+              {['TZS','USD','EUR','GBP','KES','CNY','AED','INR'].map(cur => <option key={cur} value={cur}>{cur}</option>)}
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Shipment Cost</label>
+            <input type="number" min="0" step="any" value={form.shipment_cost} onChange={e => set('shipment_cost', e.target.value)}
+              placeholder="0.00" className={inputCls}/>
+          </div>
+        </div>
+        {form.currency_code !== 'TZS' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Exchange Rate (1 {form.currency_code} = ? TZS)
+            </label>
+            <div className="flex items-center gap-2">
+              <input type="number" min="0" step="any" value={form.exchange_rate} onChange={e => set('exchange_rate', e.target.value)}
+                className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400"/>
+              {form.shipment_cost && (
+                <span className="text-xs text-gray-500 flex-shrink-0 whitespace-nowrap">
+                  = TZS {(Number(form.shipment_cost) * (Number(form.exchange_rate) || 1)).toLocaleString()}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Payment Status</label>
+            <select value={form.payment_status} onChange={e => set('payment_status', e.target.value)} className={inputCls}>
+              <option value="pending">Pending</option>
+              <option value="partially_paid">Partially Paid</option>
+              <option value="paid">Paid</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Payment Reference</label>
+            <input value={form.payment_reference} onChange={e => set('payment_reference', e.target.value)}
+              placeholder="Receipt / invoice #" className={inputCls}/>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Expense Notes</label>
+          <textarea rows={2} value={form.expense_notes} onChange={e => set('expense_notes', e.target.value)}
+            placeholder="Cost breakdown, payment terms..." className={inputCls + ' resize-none'}/>
+        </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-2">

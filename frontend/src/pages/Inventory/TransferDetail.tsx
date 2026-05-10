@@ -1,32 +1,33 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { transfersApi } from '../../api';
-import { toast } from '../../components/tpfcs/Toast';
+import { transfersApi, logisticsApi } from '../../api';
+import Modal from '../../components/tpfcs/Modal';
+import { FormDateInput } from '../../components/tpfcs/FormField';
 import BackButton from '../../components/tpfcs/BackButton';
 import { useAuth } from '../../store/authStore';
+import { toast } from '../../components/tpfcs/Toast';
 
 const STATUS_STEPS = ['draft','approved','dispatched','under_inspection','inspection_approved','received','closed'];
 const STATUS_STYLES: Record<string,string> = {
-  draft:'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
-  approved:'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
-  dispatched:'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
-  under_inspection:'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400',
-  inspection_approved:'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400',
-  received:'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
-  closed:'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
-  cancelled:'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
+  draft:               'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+  approved:            'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
+  dispatched:          'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
+  under_inspection:    'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400',
+  inspection_approved: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400',
+  received:            'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
+  closed:              'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
+  cancelled:           'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
 };
 
-// What each status means & next action
-const STATUS_GUIDE: Record<string,{desc:string;next?:string}> = {
-  draft:              { desc: 'Transfer created, awaiting approval',       next: 'Approve to proceed' },
-  approved:           { desc: 'Approved, ready to dispatch',               next: 'Dispatch to deduct stock from source store' },
-  dispatched:         { desc: 'Stock deducted from source, in transit',    next: transfer_requires_inspection => transfer_requires_inspection ? 'Create Inspection Request at destination' : 'Mark Received directly' },
-  under_inspection:   { desc: 'Inspection in progress at destination',     next: 'Complete inspection and submit for approval' },
-  inspection_approved:{ desc: 'Inspection approved, stock being added',    next: 'System auto-adds stock to destination store' },
-  received:           { desc: 'Stock received at destination store',       next: 'Close transfer to finalise' },
-  closed:             { desc: 'Transfer completed and closed',             next: undefined },
-  cancelled:          { desc: 'Transfer cancelled',                        next: undefined },
+const STATUS_GUIDE: Record<string, { desc: string; next?: any }> = {
+  draft:               { desc: 'Transfer created, awaiting approval',         next: 'Approve to proceed' },
+  approved:            { desc: 'Approved, ready to dispatch',                 next: 'Dispatch to deduct stock from source store' },
+  dispatched:          { desc: 'Stock deducted from source, in transit',      next: (req: boolean) => req ? 'Create Inspection Request at destination' : 'Mark Received directly' },
+  under_inspection:    { desc: 'Inspection in progress at destination',       next: 'Complete inspection and submit for approval' },
+  inspection_approved: { desc: 'Inspection approved, stock being added',      next: 'System auto-adds stock to destination store' },
+  received:            { desc: 'Stock received at destination store',         next: 'Close transfer to finalise' },
+  closed:              { desc: 'Transfer completed and closed' },
+  cancelled:           { desc: 'Transfer cancelled' },
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -40,28 +41,51 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const CURRENCIES = ['TZS','USD','EUR','GBP','KES','CNY','AED','INR'];
+
 export default function TransferDetail() {
   const { id }    = useParams<{ id: string }>();
   const navigate  = useNavigate();
   const { user }  = useAuth();
   const canManage = ['admin','manager'].includes(user?.role ?? '');
 
-  const [transfer,    setTransfer]    = useState<any>(null);
-  const [hasInspection, setHasInspection] = useState(false);
-  const [loading,  setLoading]  = useState(true);
-  const [acting,   setActing]   = useState<string|null>(null);
+  const [transfer,       setTransfer]       = useState<any>(null);
+  const [loading,        setLoading]        = useState(true);
+  const [acting,         setActing]         = useState<string|null>(null);
+  const [hasInspection,  setHasInspection]  = useState(false);
+  const [shipments,      setShipments]      = useState<any[]>([]);
+  const [logCos,         setLogCos]         = useState<any[]>([]);
+  // Create shipment modal state
+  const [showShipmentModal,   setShowShipmentModal]   = useState(false);
+  const [shipLogCoId,         setShipLogCoId]         = useState('');
+  const [shipCost,            setShipCost]            = useState('');
+  const [shipCurrency,        setShipCurrency]        = useState('TZS');
+  const [shipRate,            setShipRate]            = useState('1');
+  const [shipPayStatus,       setShipPayStatus]       = useState('pending');
+  const [shipPayRef,          setShipPayRef]          = useState('');
+  const [shipNotes,           setShipNotes]           = useState('');
+  const [creatingShipment,    setCreatingShipment]    = useState(false);
 
-  const load = () => transfersApi.get(Number(id)).then(r => {
-    setTransfer(r.data);
-    // Check if inspection already exists for this transfer
+  const load = () => {
+    transfersApi.get(Number(id)).then(r => {
+      setTransfer(r.data);
+      // Auto-select logistics company from transfer
+      if (r.data.logistics_company_id) setShipLogCoId(r.data.logistics_company_id.toString());
+    }).catch(() => {}).finally(() => setLoading(false));
+    logisticsApi.listTransactions({ stock_transfer_id: Number(id), limit: 50 })
+      .then(ls => setShipments(ls.data.results ?? [])).catch(() => {});
     import('../../api').then(m =>
       m.inspectionApi.listRequests({ limit: 1, source_type: 'TRANSFER', source_id: Number(id) })
         .then((ir: any) => setHasInspection((ir.data.totalResults ?? 0) > 0))
         .catch(() => {})
     );
-  }).catch(() => {}).finally(() => setLoading(false));
+  };
 
   useEffect(() => { if (id) load(); }, [id]);
+  useEffect(() => {
+    logisticsApi.listCompanies({ limit: 100, status: 'active' })
+      .then(r => setLogCos(r.data.results)).catch(() => {});
+  }, []);
 
   const action = async (label: string, fn: () => Promise<any>, confirm_msg?: string) => {
     if (confirm_msg && !confirm(confirm_msg)) return;
@@ -71,8 +95,32 @@ export default function TransferDetail() {
     finally { setActing(null); }
   };
 
+  const handleCreateShipment = async () => {
+    if (!shipLogCoId) { toast.error('Required', 'Select a logistics provider'); return; }
+    setCreatingShipment(true);
+    try {
+      const baseTzs = shipCost ? Number(shipCost) * (Number(shipRate) || 1) : null;
+      await (transfersApi as any).createShipment(Number(id), {
+        logistics_company_id:  Number(shipLogCoId),
+        shipment_cost:         shipCost    ? Number(shipCost)   : null,
+        currency_code:         shipCurrency,
+        exchange_rate:         Number(shipRate) || 1,
+        base_cost_tzs:         baseTzs,
+        payment_status:        shipPayStatus,
+        payment_reference:     shipPayRef  || null,
+        expense_notes:         shipNotes   || null,
+      });
+      toast.success('Shipment created');
+      setShowShipmentModal(false);
+      setShipCost(''); setShipNotes(''); setShipPayRef('');
+      load();
+    } catch (err: any) { toast.error('Failed', err?.response?.data?.message); }
+    finally { setCreatingShipment(false); }
+  };
+
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
   const fmtQty  = (n: any) => Number(n||0).toLocaleString(undefined,{maximumFractionDigits:4});
+  const notEmpty = (v: any) => v !== null && v !== undefined && v !== '' && v !== '0' && v !== '0000-00-00';
 
   if (loading) return (
     <div className="animate-pulse max-w-4xl mx-auto space-y-4">
@@ -83,7 +131,9 @@ export default function TransferDetail() {
 
   const currentStep = STATUS_STEPS.indexOf(transfer.status);
   const guide = STATUS_GUIDE[transfer.status];
-  const nextAction = typeof guide?.next === 'function' ? guide.next(transfer.requires_inspection) : guide?.next;
+  const nextAction = typeof guide?.next === 'function'
+    ? guide.next(Number(transfer.requires_inspection) === 1)
+    : guide?.next;
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
@@ -97,7 +147,7 @@ export default function TransferDetail() {
         <BackButton to="/inventory/transfers"/>
       </div>
 
-      {/* Header card */}
+      {/* Header */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
         <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
           <div>
@@ -108,21 +158,17 @@ export default function TransferDetail() {
               </span>
             </div>
             <p className="text-sm text-gray-500">Created by {transfer.created_by_name} · {fmtDate(transfer.created_at)}</p>
-            {/* Status guidance */}
             {guide && (
-              <div className="mt-2 flex items-center gap-1.5 text-xs">
+              <div className="mt-1 flex items-center gap-1.5 text-xs">
                 <span className="text-gray-400">{guide.desc}</span>
-                {nextAction && (
-                  <>
-                    <span className="text-gray-300 dark:text-gray-600">·</span>
-                    <span className="text-brand-600 dark:text-brand-400 font-medium">Next: {nextAction}</span>
-                  </>
-                )}
+                {nextAction && <>
+                  <span className="text-gray-300 dark:text-gray-600">·</span>
+                  <span className="text-brand-600 dark:text-brand-400 font-medium">Next: {nextAction}</span>
+                </>}
               </div>
             )}
           </div>
 
-          {/* Action buttons */}
           {canManage && (
             <div className="flex gap-2 flex-wrap">
               {transfer.status === 'draft' && (
@@ -134,7 +180,7 @@ export default function TransferDetail() {
                 </>
               )}
               {transfer.status === 'approved' && (
-                <button onClick={() => action('dispatched', () => (transfersApi as any).dispatch(Number(id)), 'Dispatch transfer? This will deduct stock from the source store.')} disabled={!!acting}
+                <button onClick={() => action('dispatched', () => (transfersApi as any).dispatch(Number(id)), 'Dispatch? This will deduct stock from the source store.')} disabled={!!acting}
                   className="px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50">
                   {acting === 'dispatched' ? 'Dispatching...' : 'Dispatch'}
                 </button>
@@ -146,17 +192,24 @@ export default function TransferDetail() {
                   Create Inspection
                 </button>
               )}
-              {transfer.status === 'dispatched' && !transfer.requires_inspection && (
-                <button onClick={() => action('received', () => (transfersApi as any).receive(Number(id)), 'Mark as received? This will add stock to the destination store.')} disabled={!!acting}
+              {transfer.status === 'dispatched' && !Number(transfer.requires_inspection) && (
+                <button onClick={() => action('received', () => (transfersApi as any).receive(Number(id)), 'Mark as received? Stock will be added to destination store.')} disabled={!!acting}
                   className="px-4 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50">
                   {acting === 'received' ? 'Processing...' : 'Mark Received'}
                 </button>
               )}
+              {Number(transfer.requires_transit) === 1 && !['cancelled','closed'].includes(transfer.status) && (
+                <button onClick={() => setShowShipmentModal(true)}
+                  className="px-4 py-2 text-sm bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                  Create Shipment
+                </button>
+              )}
               {transfer.status === 'received' && (
-                <button onClick={() => action('closed', () => (transfersApi as any).close(Number(id)), 'Close this transfer? This action is final.')} disabled={!!acting}
-                  className="px-4 py-2 text-sm bg-gray-700 text-white dark:bg-gray-600 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-500 disabled:opacity-50 flex items-center gap-2">
+                <button onClick={() => action('closed', () => (transfersApi as any).close(Number(id)), 'Close this transfer? This is final.')} disabled={!!acting}
+                  className="px-4 py-2 text-sm bg-gray-700 text-white dark:bg-gray-600 rounded-lg hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-                  {acting === 'closed' ? 'Closing...' : 'Close Transfer'}
+                  Close Transfer
                 </button>
               )}
               {!['cancelled','closed','received'].includes(transfer.status) && (
@@ -170,16 +223,13 @@ export default function TransferDetail() {
         {/* Status timeline */}
         <div className="flex items-start gap-0 overflow-x-auto pb-2 mt-2">
           {STATUS_STEPS.map((step, i) => {
-            const done    = i < currentStep;
-            const current = i === currentStep;
+            const done = i < currentStep; const current = i === currentStep;
             return (
               <div key={step} className="flex items-center flex-shrink-0">
                 <div className="flex flex-col items-center min-w-[80px]">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
-                    done    ? 'bg-green-500 border-green-500 text-white' :
-                    current ? 'bg-brand-500 border-brand-500 text-white' :
-                    'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-400'
-                  }`}>{done ? '✓' : i+1}</div>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 ${done ? 'bg-green-500 border-green-500 text-white' : current ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-400'}`}>
+                    {done ? '✓' : i+1}
+                  </div>
                   <span className={`text-[9px] mt-1 text-center capitalize leading-tight ${current ? 'text-brand-600 dark:text-brand-400 font-semibold' : 'text-gray-400'}`}>
                     {step.replace(/_/g,' ')}
                   </span>
@@ -217,15 +267,12 @@ export default function TransferDetail() {
 
       {/* Transfer items */}
       <Section title={`Transfer Items (${transfer.items?.length ?? 0})`}>
-        {!transfer.items?.length ? (
-          <p className="text-sm text-gray-400">No items</p>
-        ) : (
+        {!transfer.items?.length ? <p className="text-sm text-gray-400">No items</p> : (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-gray-400 border-b border-gray-100 dark:border-gray-800">
                 {['Product','SKU','Unit','Transfer Qty','Source Stock'].map(h =>
-                  <th key={h} className="text-left pb-2 pr-4 font-medium">{h}</th>
-                )}
+                  <th key={h} className="text-left pb-2 pr-4 font-medium">{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
@@ -243,18 +290,58 @@ export default function TransferDetail() {
         )}
       </Section>
 
-      {/* Transit info — only show if enabled AND has actual data */}
+      {/* Logistics Shipments */}
+      {(shipments.length > 0 || Number(transfer.requires_transit) === 1) && (
+        <Section title={`Logistics Shipments (${shipments.length})`}>
+          {shipments.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              No shipments created yet.
+              {Number(transfer.requires_transit) === 1 && !['cancelled','closed'].includes(transfer.status) && (
+                <button onClick={() => setShowShipmentModal(true)} className="ml-2 text-brand-500 hover:underline">Create one now</button>
+              )}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {shipments.map((sh: any) => (
+                <div key={sh.logistics_transaction_id}
+                  onClick={() => navigate(`/logistics/shipments/${sh.logistics_transaction_id}`)}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <div>
+                    <p className="font-mono text-sm font-semibold text-brand-600 dark:text-brand-400">{sh.logistics_number}</p>
+                    <p className="text-xs text-gray-500">{sh.logistics_company_name}</p>
+                    {notEmpty(sh.tracking_number) && <p className="font-mono text-xs text-gray-400">{sh.tracking_number}</p>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {notEmpty(sh.shipment_cost) && (
+                      <span className="text-xs text-gray-500">{Number(sh.shipment_cost).toLocaleString()} {sh.currency_code}</span>
+                    )}
+                    <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full capitalize ${
+                      sh.status === 'delivered'  ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
+                      sh.status === 'in_transit' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400' :
+                      sh.status === 'delayed'    ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' :
+                      'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                    }`}>{sh.status.replace(/_/g,' ')}</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* Transit info */}
       {Number(transfer.requires_transit) === 1 && (
         <Section title="Transit / Logistics">
           {(() => {
-            const notEmpty = (v: any) => v !== null && v !== undefined && v !== '' && v !== '0' && v !== '0000-00-00';
             const fields = [
-              { label: 'Method',           value: notEmpty(transfer.transit_method)         ? String(transfer.transit_method) : null },
-              { label: 'Provider',         value: notEmpty(transfer.transit_provider)        ? String(transfer.transit_provider) : null },
-              { label: 'Tracking #',       value: notEmpty(transfer.tracking_number)         ? String(transfer.tracking_number) : null },
-              { label: 'Expected Arrival', value: notEmpty(transfer.expected_arrival_date)   ? fmtDate(transfer.expected_arrival_date) : null },
-              { label: 'Vehicle',          value: notEmpty(transfer.vehicle_information)     ? String(transfer.vehicle_information) : null },
-              { label: 'Driver',           value: notEmpty(transfer.driver_information)      ? String(transfer.driver_information) : null },
+              { label: 'Provider',         value: transfer.logistics_company_name || null },
+              { label: 'Method',           value: notEmpty(transfer.transit_method)           ? transfer.transit_method : null },
+              { label: 'Provider Ref',     value: notEmpty(transfer.transit_provider)         ? transfer.transit_provider : null },
+              { label: 'Tracking #',       value: notEmpty(transfer.tracking_number)          ? transfer.tracking_number : null },
+              { label: 'Expected Arrival', value: notEmpty(transfer.expected_arrival_date)    ? fmtDate(transfer.expected_arrival_date) : null },
+              { label: 'Vehicle',          value: notEmpty(transfer.vehicle_information)      ? transfer.vehicle_information : null },
+              { label: 'Driver',           value: notEmpty(transfer.driver_information)       ? transfer.driver_information : null },
             ].filter(f => f.value !== null);
             return fields.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
@@ -267,7 +354,7 @@ export default function TransferDetail() {
               </div>
             ) : <p className="text-sm text-gray-400">No logistics details provided</p>;
           })()}
-          {transfer.logistics_notes && (
+          {notEmpty(transfer.logistics_notes) && (
             <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
               <p className="text-xs text-gray-400 mb-1">Logistics Notes</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">{transfer.logistics_notes}</p>
@@ -276,11 +363,99 @@ export default function TransferDetail() {
         </Section>
       )}
 
-      {transfer.notes && (
+      {/* Notes */}
+      {notEmpty(transfer.notes) && (
         <Section title="Notes">
           <p className="text-sm text-gray-600 dark:text-gray-400">{transfer.notes}</p>
         </Section>
       )}
+
+      {/* Create Shipment Modal */}
+      <Modal isOpen={showShipmentModal} onClose={() => setShowShipmentModal(false)} title="Create Logistics Shipment" size="md">
+        <div className="space-y-4">
+          {/* Provider */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Provider / Carrier <span className="text-red-500">*</span>
+            </label>
+            {logCos.length === 0 ? (
+              <p className="text-sm text-orange-500">No logistics companies found. <a href="/logistics/companies" className="underline">Add one first</a>.</p>
+            ) : (
+              <select value={shipLogCoId} onChange={e => setShipLogCoId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400">
+                <option value="">— Select provider —</option>
+                {logCos.map((lc: any) => (
+                  <option key={lc.logistics_company_id} value={lc.logistics_company_id}>{lc.company_name} ({lc.company_type})</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Cost */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Currency</label>
+              <select value={shipCurrency} onChange={e => setShipCurrency(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400">
+                {CURRENCIES.map(cur => <option key={cur} value={cur}>{cur}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Shipment Cost</label>
+              <input type="number" min="0" step="any" value={shipCost} onChange={e => setShipCost(e.target.value)}
+                placeholder="0.00"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400"/>
+            </div>
+          </div>
+
+          {shipCurrency !== 'TZS' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                Exchange Rate (1 {shipCurrency} = ? TZS)
+              </label>
+              <div className="flex items-center gap-2">
+                <input type="number" min="0" step="any" value={shipRate} onChange={e => setShipRate(e.target.value)}
+                  className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400"/>
+                {shipCost && <span className="text-xs text-gray-500 flex-shrink-0 whitespace-nowrap">
+                  = TZS {(Number(shipCost) * (Number(shipRate) || 1)).toLocaleString()}
+                </span>}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Payment Status</label>
+              <select value={shipPayStatus} onChange={e => setShipPayStatus(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400">
+                <option value="pending">Pending</option>
+                <option value="partially_paid">Partially Paid</option>
+                <option value="paid">Paid</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Payment Reference</label>
+              <input value={shipPayRef} onChange={e => setShipPayRef(e.target.value)} placeholder="Receipt / invoice #"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400"/>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Notes</label>
+            <textarea rows={2} value={shipNotes} onChange={e => setShipNotes(e.target.value)}
+              placeholder="Cost breakdown, payment terms..."
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm dark:text-white focus:outline-none focus:border-brand-400 resize-none"/>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-1">
+            <button onClick={() => setShowShipmentModal(false)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-400">Cancel</button>
+            <button onClick={handleCreateShipment} disabled={creatingShipment || !shipLogCoId}
+              className="px-5 py-2 text-sm font-medium bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:opacity-50">
+              {creatingShipment ? 'Creating...' : 'Create Shipment'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
