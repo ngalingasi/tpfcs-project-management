@@ -28,6 +28,9 @@ import InspectionRequestForm      from "./pages/Inspection/InspectionRequestForm
 import InspectionRequestDetail    from "./pages/Inspection/InspectionRequestDetail";
 import InspectionExecute           from "./pages/Inspection/InspectionExecute";
 import InspectionApprove           from "./pages/Inspection/InspectionApprove";
+import LogisticsCompaniesPage        from "./pages/Logistics/LogisticsCompaniesPage";
+import LogisticsTransactionsPage     from "./pages/Logistics/LogisticsTransactionsPage";
+import LogisticsTransactionDetail    from "./pages/Logistics/LogisticsTransactionDetail";
 
 // Projects
 import ProjectList        from "./pages/Projects/ProjectList";
@@ -97,6 +100,9 @@ export default function App() {
               <Route path="/inspection/requests/:id/edit"    element={<InspectionRequestForm />} />
               <Route path="/inspection/requests/:id/execute" element={<InspectionExecute />} />
               <Route path="/inspection/requests/:id/approve" element={<InspectionApprove />} />
+              <Route path="/logistics/companies"              element={<LogisticsCompaniesPage />} />
+              <Route path="/logistics/shipments"              element={<LogisticsTransactionsPage />} />
+              <Route path="/logistics/shipments/:id"          element={<LogisticsTransactionDetail />} />
 
               {/* Projects */}
               <Route path="/projects"                  element={<ProjectList />} />

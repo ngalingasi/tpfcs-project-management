@@ -251,3 +251,27 @@ export const transfersApi = {
   cancel:        (id: number)         => client.post(`/transfers/${id}/cancel`),
   getStoreStock: (storeId: number)     => client.get(`/transfers/store-stock/${storeId}`),
 };
+
+// ── Logistics API ─────────────────────────────────────────────────────────────
+export const logisticsApi = {
+  // Companies
+  listCompanies:    (params?: any) => client.get('/logistics/companies', { params }),
+  getCompany:       (id: number)   => client.get(`/logistics/companies/${id}`),
+  createCompany:    (data: any)    => client.post('/logistics/companies', data),
+  updateCompany:    (id: number, data: any) => client.put(`/logistics/companies/${id}`, data),
+  deleteCompany:    (id: number)   => client.delete(`/logistics/companies/${id}`),
+  // Transactions
+  listTransactions: (params?: any) => client.get('/logistics/transactions', { params }),
+  getTransaction:   (id: number)   => client.get(`/logistics/transactions/${id}`),
+  createTransaction:(data: any)    => client.post('/logistics/transactions', data),
+  updateTransaction:(id: number, data: any) => client.put(`/logistics/transactions/${id}`, data),
+  // Status
+  schedulePickup:   (id: number, data?: any) => client.post(`/logistics/transactions/${id}/schedule-pickup`, data),
+  markPickedUp:     (id: number, data?: any) => client.post(`/logistics/transactions/${id}/picked-up`, data),
+  markInTransit:    (id: number, data?: any) => client.post(`/logistics/transactions/${id}/in-transit`, data),
+  markDelayed:      (id: number, data?: any) => client.post(`/logistics/transactions/${id}/delayed`, data),
+  markArrived:      (id: number, data?: any) => client.post(`/logistics/transactions/${id}/arrived`, data),
+  markDelivered:    (id: number, data: any)  => client.post(`/logistics/transactions/${id}/delivered`, data),
+  cancelShipment:   (id: number, data?: any) => client.post(`/logistics/transactions/${id}/cancel`, data),
+  addNote:          (id: number, note: string, location?: string) => client.post(`/logistics/transactions/${id}/note`, { note, location }),
+};
