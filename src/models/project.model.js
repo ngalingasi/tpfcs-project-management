@@ -38,6 +38,7 @@ const createProject = async (body, creatorId) => {
       financing               = [],
     } = body;
 
+    // 26 columns, 26 placeholders
     const [result] = await conn.query(
       `INSERT INTO projects (
         name, programme_name, project_nature, sector_id, sub_sector,
@@ -48,15 +49,17 @@ const createProject = async (body, creatorId) => {
         cost_center, project_reference, relevancy_fypds,
         implementation_modality, compensation, has_land, job_created_no,
         project_manager_id, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [name, programme_name, project_nature, sector_id, sub_sector,
-       start_date, end_date,
-       fund_structure, funding, estimated_cost, project_life_span,
-       project_background, project_objectives, project_main_activities,
-       project_beneficiaries, project_use_capacity, project_scope,
-       cost_center, project_reference, relevancy_fypds,
-       implementation_modality, compensation, has_land, job_created_no,
-       project_manager_id, creatorId]
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        name, programme_name, project_nature, sector_id, sub_sector,
+        start_date, end_date,
+        fund_structure, funding, estimated_cost, project_life_span,
+        project_background, project_objectives, project_main_activities,
+        project_beneficiaries, project_use_capacity, project_scope,
+        cost_center, project_reference, relevancy_fypds,
+        implementation_modality, compensation, has_land, job_created_no,
+        project_manager_id, creatorId,
+      ]
     );
     const projectId = result.insertId;
 
@@ -76,9 +79,11 @@ const createProject = async (body, creatorId) => {
            (project_id, implementer_id, vote_name, vote_code, sub_vote_code,
             sub_vote_name, cost_center, involvement, role_type, created_by)
          VALUES (?,?,?,?,?,?,?,?,?,?)`,
-        [projectId, impl.implementer_id, impl.vote_name ?? null, impl.vote_code ?? null,
-         impl.sub_vote_code ?? null, impl.sub_vote_name ?? null, impl.cost_center ?? null,
-         impl.involvement ?? null, impl.role_type ?? 'implementer', creatorId]
+        [
+          projectId, impl.implementer_id, impl.vote_name ?? null, impl.vote_code ?? null,
+          impl.sub_vote_code ?? null, impl.sub_vote_name ?? null, impl.cost_center ?? null,
+          impl.involvement ?? null, impl.role_type ?? 'implementer', creatorId,
+        ]
       );
     }
 
@@ -88,8 +93,10 @@ const createProject = async (body, creatorId) => {
         `INSERT INTO project_coordinators
            (project_id, full_name, email, phone_number, address, created_by)
          VALUES (?,?,?,?,?,?)`,
-        [projectId, coord.full_name, coord.email ?? null,
-         coord.phone_number ?? null, coord.address ?? null, creatorId]
+        [
+          projectId, coord.full_name, coord.email ?? null,
+          coord.phone_number ?? null, coord.address ?? null, creatorId,
+        ]
       );
     }
 
@@ -110,12 +117,15 @@ const createProject = async (body, creatorId) => {
            (project_id, fund_source, financial_modality, financial_category, financier,
             committed_amount, exchange_rate, currency, amount_tzs, created_by)
          VALUES (?,?,?,?,?,?,?,?,?,?)`,
-        [projectId, f.fund_source ?? null, f.financial_modality ?? null,
-         f.financial_category ?? null, f.financier ?? null,
-         f.committed_amount ?? null, f.exchange_rate ?? null,
-         f.currency ?? 'TZS',
-         f.committed_amount && f.exchange_rate ? f.committed_amount * f.exchange_rate : null,
-         creatorId]
+        [
+          projectId, f.fund_source ?? null, f.financial_modality ?? null,
+          f.financial_category ?? null, f.financier ?? null,
+          f.committed_amount ?? null, f.exchange_rate ?? null,
+          f.currency ?? 'TZS',
+          f.committed_amount && f.exchange_rate
+            ? Number(f.committed_amount) * Number(f.exchange_rate) : null,
+          creatorId,
+        ]
       );
     }
 
@@ -170,7 +180,7 @@ const getProjectById = async (id, conn = null) => {
     [id]
   );
 
-  // Implementers with role_type
+  // Implementers
   project.implementers = await exec(
     `SELECT i.*, pi.vote_name, pi.vote_code, pi.sub_vote_code, pi.sub_vote_name,
             pi.cost_center, pi.involvement, pi.role_type, pi.id AS link_id
@@ -219,8 +229,8 @@ const updateProject = async (id, body, updatorId) => {
     'project_manager_id',
   ];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
-  const hasRelations = ['regions','implementers','coordinators','employment','financing']
-    .some(k => body[k] !== undefined);
+  const hasRelations = ['regions', 'implementers', 'coordinators', 'employment', 'financing']
+    .some((k) => body[k] !== undefined);
 
   if (!fields.length && !hasRelations) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
@@ -255,10 +265,12 @@ const updateProject = async (id, body, updatorId) => {
            (project_id, implementer_id, vote_name, vote_code, sub_vote_code,
             sub_vote_name, cost_center, involvement, role_type, created_by)
          VALUES (?,?,?,?,?,?,?,?,?,?)`,
-        [id, impl.implementer_id, impl.vote_name ?? null, impl.vote_code ?? null,
-         impl.sub_vote_code ?? null, impl.sub_vote_name ?? null,
-         impl.cost_center ?? null, impl.involvement ?? null,
-         impl.role_type ?? 'implementer', updatorId]
+        [
+          id, impl.implementer_id, impl.vote_name ?? null, impl.vote_code ?? null,
+          impl.sub_vote_code ?? null, impl.sub_vote_name ?? null,
+          impl.cost_center ?? null, impl.involvement ?? null,
+          impl.role_type ?? 'implementer', updatorId,
+        ]
       );
     }
   }
@@ -272,8 +284,10 @@ const updateProject = async (id, body, updatorId) => {
         `INSERT INTO project_coordinators
            (project_id, full_name, email, phone_number, address, created_by)
          VALUES (?,?,?,?,?,?)`,
-        [id, coord.full_name, coord.email ?? null,
-         coord.phone_number ?? null, coord.address ?? null, updatorId]
+        [
+          id, coord.full_name, coord.email ?? null,
+          coord.phone_number ?? null, coord.address ?? null, updatorId,
+        ]
       );
     }
   }
@@ -301,11 +315,13 @@ const updateProject = async (id, body, updatorId) => {
            (project_id, fund_source, financial_modality, financial_category, financier,
             committed_amount, exchange_rate, currency, amount_tzs)
          VALUES (?,?,?,?,?,?,?,?,?)`,
-        [id, f.fund_source ?? null, f.financial_modality ?? null,
-         f.financial_category ?? null, f.financier ?? null,
-         f.committed_amount ?? null, f.exchange_rate ?? null, f.currency ?? 'TZS',
-         f.committed_amount && f.exchange_rate
-           ? Number(f.committed_amount) * Number(f.exchange_rate) : null]
+        [
+          id, f.fund_source ?? null, f.financial_modality ?? null,
+          f.financial_category ?? null, f.financier ?? null,
+          f.committed_amount ?? null, f.exchange_rate ?? null, f.currency ?? 'TZS',
+          f.committed_amount && f.exchange_rate
+            ? Number(f.committed_amount) * Number(f.exchange_rate) : null,
+        ]
       );
     }
   }

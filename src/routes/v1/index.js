@@ -15,6 +15,7 @@ const poRoute           = require('./purchase_order.route');
 const inspectionRoute   = require('./inspection.route');
 const transferRoute     = require('./transfer.route');
 const logisticsRoute    = require('./logistics.route');
+const erpRoute = require('./erp.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -36,6 +37,7 @@ const defaultRoutes = [
   { path: '/inspection',      route: inspectionRoute },
   { path: '/transfers',        route: transferRoute },
   { path: '/logistics',        route: logisticsRoute },
+  { path: '/erp', route: erpRoute },
 ];
 
 defaultRoutes.forEach(({ path, route }) => router.use(path, route));
