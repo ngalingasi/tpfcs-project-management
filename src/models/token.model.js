@@ -1,30 +1,43 @@
-const jwt = require('jsonwebtoken');
-const moment = require('moment');
+const jwt      = require('jsonwebtoken');
+const moment   = require('moment');
 const httpStatus = require('http-status');
-const config = require('../config/config');
+const config   = require('../config/config');
 const { query } = require('../config/database');
-const ApiError = require('../utils/ApiError');
+const ApiError  = require('../utils/ApiError');
 const { tokenTypes } = require('../config/tokens');
 
 /**
- * Generate a signed JWT
+ * Generate a signed JWT.
+ * user param is optional — when provided, embeds full_name, email, role
+ * into the payload so child system frontends can read them on ERP redirect
+ * without waiting for /auth/me.
  */
-const generateToken = (userId, expires, type, secret = config.jwt.secret) => {
+const generateToken = (userId, expires, type, secret = config.jwt.secret, user = null) => {
   const payload = {
-    sub: userId,
-    iat: moment().unix(),
-    exp: expires.unix(),
+    sub:  userId,
+    iat:  moment().unix(),
+    exp:  expires.unix(),
     type,
   };
+
+  // Embed user profile fields so ERP redirect can build a complete user object
+  // from the token alone — no /auth/me round-trip needed on first render.
+  if (user) {
+    payload.full_name            = user.full_name  ?? null;
+    payload.username             = user.username   ?? null;
+    payload.email                = user.email      ?? null;
+    payload.role                 = user.role       ?? null;
+    payload.must_change_password = user.must_change_password ?? 0;
+  }
+
   return jwt.sign(payload, secret);
 };
 
 /**
- * Save a refresh/reset/verify token in the DB
- * We store only non-access tokens (access tokens are stateless)
+ * Save a refresh/reset/verify token in the DB.
+ * Access tokens are stateless — only non-access tokens are stored.
  */
 const saveToken = async (token, userId, expires, type, blacklisted = false) => {
-  // Use a simple token table (create if missing)
   await query(
     `INSERT INTO tokens (token, user_id, expires, type, blacklisted) VALUES (?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE expires = VALUES(expires), blacklisted = VALUES(blacklisted)`,
@@ -34,7 +47,7 @@ const saveToken = async (token, userId, expires, type, blacklisted = false) => {
 };
 
 /**
- * Verify a token and return its record from DB
+ * Verify a token and return its DB record.
  */
 const verifyToken = async (token, type) => {
   const payload = jwt.verify(token, config.jwt.secret);
@@ -49,41 +62,33 @@ const verifyToken = async (token, type) => {
 };
 
 /**
- * Generate access + refresh tokens for a user
+ * Generate access + refresh tokens for a user.
+ * Accepts a full user object so profile fields are embedded in the JWT.
  */
 const generateAuthTokens = async (user) => {
-  const accessTokenExpires = moment().add(config.jwt.accessExpirationMinutes, 'minutes');
-  const accessToken = generateToken(user.user_id, accessTokenExpires, tokenTypes.ACCESS);
+  const accessTokenExpires  = moment().add(config.jwt.accessExpirationMinutes, 'minutes');
+  const accessToken         = generateToken(user.user_id, accessTokenExpires, tokenTypes.ACCESS, config.jwt.secret, user);
 
   const refreshTokenExpires = moment().add(config.jwt.refreshExpirationDays, 'days');
-  const refreshToken = generateToken(user.user_id, refreshTokenExpires, tokenTypes.REFRESH);
+  const refreshToken        = generateToken(user.user_id, refreshTokenExpires, tokenTypes.REFRESH, config.jwt.secret);
   await saveToken(refreshToken, user.user_id, refreshTokenExpires, tokenTypes.REFRESH);
 
   return {
-    access: { token: accessToken, expires: accessTokenExpires.toDate() },
+    access:  { token: accessToken,  expires: accessTokenExpires.toDate()  },
     refresh: { token: refreshToken, expires: refreshTokenExpires.toDate() },
   };
 };
 
-/**
- * Generate a reset-password token
- */
 const generateResetPasswordToken = async (email) => {
   const rows = await query('SELECT user_id FROM users WHERE email = ? AND status = "active"', [email]);
-  if (!rows.length) {
-    // Return silently — do not reveal whether email exists (prevents user enumeration)
-    return null;
-  }
-  const userId = rows[0].user_id;
+  if (!rows.length) return null;
+  const userId  = rows[0].user_id;
   const expires = moment().add(config.jwt.resetPasswordExpirationMinutes, 'minutes');
   const resetToken = generateToken(userId, expires, tokenTypes.RESET_PASSWORD);
   await saveToken(resetToken, userId, expires, tokenTypes.RESET_PASSWORD);
   return resetToken;
 };
 
-/**
- * Generate an email-verification token
- */
 const generateVerifyEmailToken = async (user) => {
   const expires = moment().add(config.jwt.verifyEmailExpirationMinutes, 'minutes');
   const verifyEmailToken = generateToken(user.user_id, expires, tokenTypes.VERIFY_EMAIL);
@@ -91,9 +96,6 @@ const generateVerifyEmailToken = async (user) => {
   return verifyEmailToken;
 };
 
-/**
- * Delete tokens by user + type
- */
 const deleteTokensByUserAndType = async (userId, type) => {
   await query('DELETE FROM tokens WHERE user_id = ? AND type = ?', [userId, type]);
 };
