@@ -6,7 +6,8 @@ const { ACTIVITY_STATUSES, ACTIVITY_STATUS_TRANSITIONS } = require('../config/st
 const { validateActivityBudget, syncTargetSpent } = require('./budget.model');
 
 /**
- * Create an activity — budgeted_amount is required and validated against target budget
+ * Create an activity — budgeted_amount is optional; when provided (> 0) it is
+ * validated against the target's available budget, otherwise it defaults to 0.
  */
 const createActivity = async (body, creatorId) => {
   const {
@@ -27,16 +28,19 @@ const createActivity = async (body, creatorId) => {
     start_date       = null,
     end_date         = null,
     status           = ACTIVITY_STATUSES.PENDING,
-    budgeted_amount,
+    budgeted_amount  = 0,
   } = body;
 
-  if (!budgeted_amount || Number(budgeted_amount) <= 0) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'budgeted_amount is required and must be greater than 0');
+  const budget = budgeted_amount ? Number(budgeted_amount) : 0;
+  if (budget < 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'budgeted_amount must not be negative');
   }
 
   return transaction(async (conn) => {
-    // Validate budget fits within target allocation
-    await validateActivityBudget(target_id, Number(budgeted_amount), conn);
+    // Only validate against the target's allocation when a budget was actually given
+    if (budget > 0) {
+      await validateActivityBudget(target_id, budget, conn);
+    }
 
     const [result] = await conn.query(
       `INSERT INTO activities (target_id, region_id, name, description, main_activity_id, council, ward,
@@ -45,7 +49,7 @@ const createActivity = async (body, creatorId) => {
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
       [target_id, region_id, name, description, main_activity_id, council, ward, street,
        road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id,
-       start_date, end_date, Number(budgeted_amount), status, creatorId]
+       start_date, end_date, budget, status, creatorId]
     );
 
     // Sync target spent tracker

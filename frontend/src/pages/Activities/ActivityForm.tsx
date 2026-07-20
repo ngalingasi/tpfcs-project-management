@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router';
-import { activitiesApi, targetsApi, objectivesApi, projectsApi, lookupsApi, usersApi } from '../../api';
-import type { Target, Region, UserRecord } from '../../types';
+import { activitiesApi, targetsApi, objectivesApi, projectsApi, usersApi, sitesApi } from '../../api';
+import type { Target, Region, UserRecord, ProjectSite } from '../../types';
 import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
+import SearchableSelect from '../../components/tpfcs/SearchableSelect';
 import { toast } from '../../components/tpfcs/Toast';
 import BackButton from '../../components/tpfcs/BackButton';
 
@@ -51,6 +52,8 @@ export default function ActivityForm() {
 
   const [targets,          setTargets]          = useState<Target[]>([]);
   const [projectRegions,   setProjectRegions]   = useState<Region[]>([]);
+  const [projectSites,     setProjectSites]     = useState<ProjectSite[]>([]);
+  const [selectedSiteId,   setSelectedSiteId]   = useState('');
   const [parentActivities, setParentActivities] = useState<{ activity_id: number; name: string; status: string }[]>([]);
   const [loadingParents,   setLoadingParents]   = useState(false);
   const [users,            setUsers]            = useState<UserRecord[]>([]);
@@ -85,7 +88,7 @@ export default function ActivityForm() {
             }
             tRes.data.forEach(t => allTargets.push({
               ...t,
-              name: `${project.name} → ${obj.title} → ${t.name}`,
+              name: `${obj.title} → ${t.name}`,
               project_id: project.project_id,
               project_regions: projectRegionsMap[project.project_id],
             } as any));
@@ -127,16 +130,55 @@ export default function ActivityForm() {
     init();
   }, [id]);
 
-  // ── When target changes, update project regions ────────────────────────────
+  // ── When target changes, resolve that target's project regions + sites ─────
+  // Region options come ONLY from the target's linked project (its registered
+  // project_regions, plus any regions actually used by the project's sites) —
+  // never a generic "all regions" fallback.
   useEffect(() => {
-    if (!form.target_id) { setProjectRegions([]); return; }
+    setSelectedSiteId('');
+    if (!form.target_id) { setProjectRegions([]); setProjectSites([]); return; }
     const selectedTarget = targets.find(t => t.target_id === Number(form.target_id)) as any;
-    if (selectedTarget?.project_regions?.length) {
-      setProjectRegions(selectedTarget.project_regions);
-    } else {
-      lookupsApi.regions().then(r => setProjectRegions(r.data)).catch(() => {});
-    }
+    const projectId   = selectedTarget?.project_id;
+    const objectiveId = selectedTarget?.objective_id;
+    const baseRegions: Region[] = selectedTarget?.project_regions ?? [];
+
+    if (!projectId) { setProjectRegions(baseRegions); setProjectSites([]); return; }
+
+    sitesApi.listByProject(projectId)
+      .then(r => {
+        const allSites = r.data;
+
+        // Sites scoped to this target's objective — used for the Site picker.
+        setProjectSites(allSites.filter(s => s.objective_id === objectiveId));
+
+        // Region options = project's own regions ∪ regions referenced by its sites.
+        const merged = new Map<number, Region>();
+        baseRegions.forEach(r => merged.set(r.region_id, r));
+        allSites.forEach(s => {
+          if (s.region_id != null && s.region_name && !merged.has(s.region_id)) {
+            merged.set(s.region_id, { region_id: s.region_id, region_name: s.region_name });
+          }
+        });
+        setProjectRegions(Array.from(merged.values()));
+      })
+      .catch(() => { setProjectSites([]); setProjectRegions(baseRegions); });
   }, [form.target_id, targets]);
+
+  // ── Autofill Location fields when a site is picked ──────────────────────────
+  const applySite = (siteId: string) => {
+    setSelectedSiteId(siteId);
+    if (!siteId) return;
+    const site = projectSites.find(s => s.site_id === Number(siteId));
+    if (!site) return;
+    setForm(f => ({
+      ...f,
+      region_id: site.region_id != null ? String(site.region_id) : f.region_id,
+      council:   site.district ?? f.council,
+      ward:      site.ward     ?? f.ward,
+      latitude:  site.latitude  != null ? String(site.latitude)  : f.latitude,
+      longitude: site.longitude != null ? String(site.longitude) : f.longitude,
+    }));
+  };
 
   // ── When target changes, load parent activities ────────────────────────────
   useEffect(() => {
@@ -155,7 +197,6 @@ export default function ActivityForm() {
     e.preventDefault();
     if (!form.name.trim())    { setError('Activity name is required'); return; }
     if (!form.target_id)      { setError('Target is required'); return; }
-    if (!isEdit && !form.budgeted_amount) { setError('Budgeted amount is required'); return; }
 
     setSaving(true); setError('');
     try {
@@ -179,7 +220,7 @@ export default function ActivityForm() {
       };
       if (!isEdit) {
         payload.target_id       = Number(form.target_id);
-        payload.budgeted_amount = Number(form.budgeted_amount);
+        payload.budgeted_amount = form.budgeted_amount ? Number(form.budgeted_amount) : 0;
       }
 
       if (isEdit) {
@@ -243,16 +284,20 @@ export default function ActivityForm() {
         <Section title="Activity Details">
 
           {/* Target */}
-          <FormSelect label="Target" required value={form.target_id} onChange={e => set('target_id', e.target.value)}>
-            <option value="">Select target...</option>
-            {targets.map(t => (
-              <option key={t.target_id} value={t.target_id}>
-                {t.name}{t.allocated_budget > 0
-                  ? ` (TZS ${Number(t.allocated_budget).toLocaleString()})`
-                  : ' — no budget'}
-              </option>
-            ))}
-          </FormSelect>
+          <SearchableSelect
+            label="Target"
+            required
+            value={form.target_id}
+            onChange={v => set('target_id', v)}
+            placeholder="Select target..."
+            allowClear={false}
+            options={targets.map(t => ({
+              value: String(t.target_id),
+              label: `${t.name}${t.allocated_budget > 0
+                ? ` (TZS ${Number(t.allocated_budget).toLocaleString()})`
+                : ' — no budget'}`,
+            }))}
+          />
 
           {/* Budget feedback */}
           {selectedTarget && (
@@ -296,6 +341,23 @@ export default function ActivityForm() {
         </Section>
 
         <Section title="Location">
+          {projectSites.length > 0 && (
+            <div>
+              <FormSelect
+                label="Site"
+                value={selectedSiteId}
+                onChange={e => applySite(e.target.value)}
+              >
+                <option value="">Select a site (linked to this target's objective) to autofill location...</option>
+                {projectSites.map(s => (
+                  <option key={s.site_id} value={s.site_id}>
+                    {s.site_name}{s.region_name ? ` — ${s.region_name}` : ''}
+                  </option>
+                ))}
+              </FormSelect>
+              <p className="mt-1 text-xs text-gray-400">Showing sites linked to this target's objective. Picking a site fills in Region, Council, Ward, Latitude and Longitude below — you can still adjust them.</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormSelect label="Region" value={form.region_id} onChange={e => set('region_id', e.target.value)}>
               <option value="">Select region...</option>
@@ -330,8 +392,7 @@ export default function ActivityForm() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FormInput
-                label={isEdit ? 'Budgeted Amount (read-only)' : 'Budgeted Amount (TZS)'}
-                required={!isEdit}
+                label={isEdit ? 'Budgeted Amount (read-only)' : 'Budgeted Amount (TZS) — optional'}
                 type="number"
                 value={form.budgeted_amount}
                 onChange={e => set('budgeted_amount', e.target.value)}
@@ -339,6 +400,7 @@ export default function ActivityForm() {
                 disabled={isEdit}
               />
               {isEdit && <p className="text-xs text-gray-400 mt-1">Use Budget Revision on the activity detail to change.</p>}
+              {!isEdit && <p className="text-xs text-gray-400 mt-1">Leave blank if no budget is allocated yet — you can add it later via a Budget Revision.</p>}
             </div>
             <FormSelect label="Status" value={form.status} onChange={e => set('status', e.target.value)}>
               <option value="pending">Pending</option>

@@ -6,7 +6,22 @@ const auth = require('../../middlewares/auth');
 const projectController = require('../../controllers/project.controller');
 const objectiveController = require('../../controllers/objective.controller');
 const documentController = require('../../controllers/document.controller');
+const siteController = require('../../controllers/site.controller');
 const upload = require('../../middlewares/upload');
+
+const siteSchema = {
+  body: Joi.object().keys({
+    region_id:    Joi.number().integer().optional().allow(null),
+    objective_id: Joi.number().integer().optional().allow(null),
+    site_name:    Joi.string().required(),
+    district:     Joi.string().optional().allow('', null),
+    ward:         Joi.string().optional().allow('', null),
+    description:  Joi.string().optional().allow('', null),
+    latitude:     Joi.number().optional().allow(null),
+    longitude:    Joi.number().optional().allow(null),
+    status:       Joi.string().valid('planned', 'active', 'completed', 'on_hold').optional(),
+  }),
+};
 
 const coordinatorSchema = Joi.object({
   full_name:    Joi.string().required(),
@@ -107,5 +122,10 @@ router.route('/:projectId/objectives')
 router.route('/:projectId/documents')
   .post(auth('manageProjects'), upload.single('file'), documentController.uploadDocument)
   .get(auth('getProjects'), documentController.getDocumentsByProject);
+
+// Sites nested
+router.route('/:projectId/sites')
+  .post(auth('manageProjects'), validate(siteSchema), siteController.createSite)
+  .get(auth('getProjects'), siteController.getSitesByProject);
 
 module.exports = router;

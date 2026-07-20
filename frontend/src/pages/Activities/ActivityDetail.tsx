@@ -33,9 +33,14 @@ export default function ActivityDetail() {
   const [subActivities, setSubActivities] = useState<Activity[]>([]);
   const [comments,      setComments]      = useState<any[]>([]);
   const [documents,     setDocuments]     = useState<any[]>([]);
+  const [pictures,      setPictures]      = useState<any[]>([]);
   const [commentText,   setCommentText]   = useState('');
   const [addingComment, setAddingComment] = useState(false);
-  const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string}|null>(null);
+  const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string;documentId?:number;description?:string|null}|null>(null);
+  const [docComments,   setDocComments]   = useState<any[]>([]);
+  const [uploadModal,   setUploadModal]   = useState<'document' | 'picture' | null>(null);
+  const [uploadForm,    setUploadForm]    = useState({ name: '', description: '', file: null as File | null });
+  const [uploading,     setUploading]     = useState(false);
   const [payments,      setPayments]      = useState<any[]>([]);
   const [paySummary,    setPaySummary]    = useState<any>(null);
   const [showPayForm,   setShowPayForm]   = useState(false);
@@ -43,7 +48,7 @@ export default function ActivityDetail() {
   const [payFile,       setPayFile]       = useState<File | null>(null);
   const [savingPay,     setSavingPay]     = useState(false);
   const [loading,    setLoading]    = useState(true);
-  const [tab,        setTab]        = useState<'details' | 'history' | 'budget' | 'sub' | 'comments' | 'documents' | 'payments'>('details');
+  const [tab,        setTab]        = useState<'details' | 'history' | 'documents' | 'pictures' | 'sub' | 'comments' | 'budget' | 'payments'>('details');
 
   // Modals
   const [statusModal,   setStatusModal]   = useState(false);
@@ -78,8 +83,10 @@ export default function ActivityDetail() {
         .then(r => setPayments(r.data)).catch(() => {});
       activitiesApi.getPaymentSummary(aid)
         .then(r => setPaySummary(r.data)).catch(() => {});
-      activitiesApi.getDocuments(aid)
+      activitiesApi.getDocuments(aid, 'document')
         .then(r => setDocuments(r.data)).catch(() => {});
+      activitiesApi.getDocuments(aid, 'picture')
+        .then(r => setPictures(r.data)).catch(() => {});
     } finally { setLoading(false); }
   };
 
@@ -117,6 +124,70 @@ export default function ActivityDetail() {
     navigate('/activities');
   };
 
+  const openUploadModal = (category: 'document' | 'picture') => {
+    setUploadForm({ name: '', description: '', file: null });
+    setUploadModal(category);
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadForm.file) { toast.error('File required', 'Please choose a file to upload'); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', uploadForm.file);
+      fd.append('name', uploadForm.name.trim() || uploadForm.file.name);
+      fd.append('description', uploadForm.description.trim());
+      fd.append('category', uploadModal === 'picture' ? 'picture' : 'document');
+      const res = await activitiesApi.uploadDocument(aid, fd);
+      if (uploadModal === 'picture') {
+        setPictures(prev => [res.data, ...prev]);
+      } else {
+        setDocuments(prev => [res.data, ...prev]);
+      }
+      toast.success(uploadModal === 'picture' ? 'Picture uploaded' : 'Document uploaded', res.data.name);
+      setUploadModal(null);
+    } catch (err: any) {
+      toast.error('Upload failed', err?.response?.data?.message ?? 'Could not upload file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const openDocPreview = async (doc: any) => {
+    setPreviewDoc({ url: fileUrl(doc), name: doc.name, mime: doc.mime_type, documentId: doc.document_id, description: doc.description });
+    setDocComments([]);
+    try {
+      const res = await activitiesApi.getDocumentComments(aid, doc.document_id);
+      setDocComments(res.data);
+    } catch { /* ignore */ }
+  };
+
+  const handleAddDocComment = async (text: string) => {
+    if (!previewDoc?.documentId) return;
+    try {
+      const res = await activitiesApi.addDocumentComment(aid, previewDoc.documentId, text);
+      setDocComments(prev => [...prev, res.data]);
+      // Keep the underlying list's comment_count roughly in sync
+      const bump = (list: any[]) => list.map(d => d.document_id === previewDoc.documentId ? { ...d, comment_count: (d.comment_count ?? 0) + 1 } : d);
+      setDocuments(bump);
+      setPictures(bump);
+    } catch (err: any) {
+      toast.error('Failed to add comment', err?.response?.data?.message);
+    }
+  };
+
+  const handleDeleteDocComment = async (commentId: number) => {
+    if (!previewDoc?.documentId) return;
+    try {
+      await activitiesApi.deleteDocumentComment(aid, previewDoc.documentId, commentId);
+      setDocComments(prev => prev.filter(c => c.comment_id !== commentId));
+      const drop = (list: any[]) => list.map(d => d.document_id === previewDoc.documentId ? { ...d, comment_count: Math.max(0, (d.comment_count ?? 1) - 1) } : d);
+      setDocuments(drop);
+      setPictures(drop);
+    } catch { toast.error('Failed to delete comment'); }
+  };
+
   const fmt  = (n?: number | string | null) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
   const dt   = (s?: string | null) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const effectiveBudget = (a: any) => a?.effective_budget ?? a?.revised_amount ?? a?.budgeted_amount ?? null;
@@ -142,16 +213,6 @@ export default function ActivityDetail() {
 
   return (
     <div className="space-y-5">
-      {/* Breadcrumb */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <Link to="/activities" className="hover:text-brand-500">Activities</Link>
-          <span>/</span>
-          <span className="text-gray-700 dark:text-gray-300 font-medium truncate">{activity.name}</span>
-        </div>
-        <BackButton to="/activities" />
-      </div>
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
@@ -164,6 +225,7 @@ export default function ActivityDetail() {
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
+          <BackButton to="/activities" />
           {!isTerminal && (user?.role === 'admin' || user?.role === 'manager') && (
             <button onClick={() => { setNewStatus(allowedNext[0] ?? 'in_progress'); setProgress(String(activity.progress)); setStatusErr(''); setStatusModal(true); }}
               className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
@@ -226,18 +288,19 @@ export default function ActivityDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
         {[
-          { key: 'details',  label: 'Details' },
-          { key: 'history',  label: `Status History (${history.length})` },
+          { key: 'details',   label: 'Details' },
+          { key: 'history',   label: `Status History (${history.length})` },
+          { key: 'documents', label: `Documents (${documents.length})` },
+          { key: 'pictures',  label: `Pictures (${pictures.length})` },
+          { key: 'sub',       label: `Sub-Activities (${subActivities.length})` },
+          { key: 'comments',  label: `Comments (${comments.length})` },
           { key: 'budget',    label: `Budget (${revisions.length} revisions)` },
-      { key: 'sub',       label: `Sub-Activities (${subActivities.length})` },
-      { key: 'comments',  label: `Comments (${comments.length})` },
-      { key: 'documents', label: `Documents (${documents.length})` },
-      { key: 'payments',  label: `Payments (${payments.length})` },
+          { key: 'payments',  label: `Payments (${payments.length})` },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === t.key
                 ? 'border-brand-500 text-brand-600 dark:text-brand-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700'
@@ -455,29 +518,12 @@ export default function ActivityDetail() {
       {/* Documents Tab */}
       {tab === 'documents' && (
         <div className="space-y-4">
-          {/* Upload */}
-          <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 text-center">
-            <label className="cursor-pointer">
-              <input type="file" className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const fd = new FormData();
-                  fd.append('file', file);
-                  fd.append('name', file.name);
-                  try {
-                    const res = await activitiesApi.uploadDocument(aid, fd);
-                    setDocuments(prev => [res.data, ...prev]);
-                    toast.success('Document uploaded', file.name);
-                  } catch (err: any) {
-                    toast.error('Upload failed', err?.response?.data?.message ?? 'Could not upload file');
-                  }
-                  e.target.value = '';
-                }}
-              />
-              <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload a document</p>
-            </label>
+          <div className="flex justify-end">
+            <button onClick={() => openUploadModal('document')}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              Upload Document
+            </button>
           </div>
 
           {documents.length === 0 ? (
@@ -489,15 +535,21 @@ export default function ActivityDetail() {
                   <svg className="w-8 h-8 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{doc.name}</p>
-                    <p className="text-xs text-gray-400">{doc.uploaded_by_name} · v{doc.version_number} · {doc.size ? `${(doc.size/1024).toFixed(1)} KB` : ''}</p>
+                    {doc.description && <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{doc.description}</p>}
+                    <p className="text-xs text-gray-400 mt-0.5">{doc.uploaded_by_name} · v{doc.version_number} · {doc.size ? `${(doc.size/1024).toFixed(1)} KB` : ''}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
-                      onClick={() => {
-                        setPreviewDoc({ url: fileUrl(doc), name: doc.name, mime: doc.mime_type });
-                      }}
-                      className="text-xs text-brand-500 hover:text-brand-600"
-                    >Preview</button>
+                      onClick={() => openDocPreview(doc)}
+                      className="flex items-center gap-1 text-xs text-brand-500 hover:text-brand-600"
+                    >
+                      Preview
+                      {doc.comment_count > 0 && (
+                        <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-brand-100 dark:bg-brand-500/20 text-brand-600 dark:text-brand-400 text-[10px] font-medium">
+                          {doc.comment_count}
+                        </span>
+                      )}
+                    </button>
                     <span className="text-gray-300 dark:text-gray-600">·</span>
                     <a href={fileUrl(doc)} download={doc.name}
                       className="text-xs text-gray-500 hover:text-brand-600">
@@ -505,6 +557,47 @@ export default function ActivityDetail() {
                     </a>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PICTURES TAB ── */}
+      {tab === 'pictures' && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button onClick={() => openUploadModal('picture')}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              Upload Picture
+            </button>
+          </div>
+
+          {pictures.length === 0 ? (
+            <p className="text-center py-8 text-sm text-gray-400">No pictures uploaded yet</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {pictures.map((pic: any) => (
+                <button
+                  key={pic.document_id}
+                  onClick={() => openDocPreview(pic)}
+                  className="group relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 aspect-square text-left"
+                >
+                  <img
+                    src={fileUrl(pic)}
+                    alt={pic.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2 pt-6">
+                    <p className="text-xs font-medium text-white truncate">{pic.name}</p>
+                  </div>
+                  {pic.comment_count > 0 && (
+                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-medium">
+                      {pic.comment_count} 💬
+                    </span>
+                  )}
+                </button>
               ))}
             </div>
           )}
@@ -753,9 +846,53 @@ export default function ActivityDetail() {
           url={previewDoc.url}
           name={previewDoc.name}
           mimeType={previewDoc.mime}
+          description={previewDoc.description}
+          comments={previewDoc.documentId ? docComments : undefined}
+          onAddComment={previewDoc.documentId ? handleAddDocComment : undefined}
+          onDeleteComment={previewDoc.documentId ? handleDeleteDocComment : undefined}
+          canDeleteComment={(c) => user?.role === 'admin' || Number(c.created_by) === user?.user_id}
           onClose={() => setPreviewDoc(null)}
         />
       )}
+
+      {/* Upload Document / Picture Modal */}
+      <Modal isOpen={!!uploadModal} onClose={() => setUploadModal(null)} title={uploadModal === 'picture' ? 'Upload Picture' : 'Upload Document'} size="sm">
+        <form onSubmit={handleUpload} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              {uploadModal === 'picture' ? 'Picture' : 'File'} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="file"
+              accept={uploadModal === 'picture' ? 'image/*' : undefined}
+              onChange={e => setUploadForm(f => ({ ...f, file: e.target.files?.[0] ?? null }))}
+              className="w-full text-sm text-gray-600 dark:text-gray-400 file:mr-3 file:px-3 file:py-1.5 file:rounded-md file:border-0 file:bg-brand-500 file:text-white file:text-sm hover:file:bg-brand-600"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              {uploadModal === 'picture' ? 'Picture Name' : 'Document Name'}
+            </label>
+            <input
+              type="text"
+              value={uploadForm.name}
+              onChange={e => setUploadForm(f => ({ ...f, name: e.target.value }))}
+              placeholder={uploadForm.file?.name || 'Leave blank to use file name'}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400"
+            />
+          </div>
+          <FormTextArea
+            label="Description"
+            value={uploadForm.description}
+            onChange={e => setUploadForm(f => ({ ...f, description: e.target.value }))}
+            placeholder={uploadModal === 'picture' ? 'What does this picture show?' : 'What is this document about?'}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setUploadModal(null)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600">Cancel</button>
+            <button type="submit" disabled={uploading} className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50">{uploading ? 'Uploading...' : 'Upload'}</button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Update Status Modal */}
       <Modal isOpen={statusModal} onClose={() => setStatusModal(false)} title="Update Activity Status" size="sm">

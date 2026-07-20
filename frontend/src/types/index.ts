@@ -135,6 +135,26 @@ export interface Project {
   coordinators?: ProjectCoordinator[];
   employment?: ProjectEmployment[];
   objectives?: Objective[];
+  sites?: ProjectSite[];
+}
+
+// ── Project Site ──────────────────────────────────────────────────────────────
+export interface ProjectSite {
+  site_id: number;
+  project_id: number;
+  region_id?: number | null;
+  region_name?: string;
+  objective_id?: number | null;
+  objective_title?: string;
+  objective_status?: string;
+  site_name: string;
+  district?: string | null;
+  ward?: string | null;
+  description?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  status: 'planned' | 'active' | 'completed' | 'on_hold';
+  created_at: string;
 }
 
 export interface ProjectImplementer {

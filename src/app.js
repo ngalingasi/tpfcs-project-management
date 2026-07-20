@@ -67,6 +67,14 @@ app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);
 
 // ── Static: uploaded files ────────────────────────────────────────────────────
+// The global helmet frameguard (DENY) below would otherwise block the in-app
+// WhatsApp-style <object>/<iframe> preview for PDFs — direct download/open in
+// another app is unaffected since X-Frame-Options only applies to framed
+// embedding, which is why "works everywhere else but not in-app preview" happens.
+app.use('/uploads', (req, res, next) => {
+  res.removeHeader('X-Frame-Options');
+  next();
+});
 app.use('/uploads', express.static(path.join(process.cwd(), config.upload.dir)));
 
 // ── Rate limiting on auth ─────────────────────────────────────────────────────

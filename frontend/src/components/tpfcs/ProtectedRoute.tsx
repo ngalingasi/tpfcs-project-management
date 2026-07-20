@@ -1,6 +1,11 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../../store/authStore';
 
+// In production, unauthenticated users are sent to the ERP portal.
+// In development, they see the local /signin page as normal.
+const IS_PROD    = import.meta.env.VITE_IS_PRODUCTION === 'true';
+const ERP_PORTAL = 'https://erp.tpfcs.co.tz';
+
 interface Props {
   allowedRoles?: string[];
 }
@@ -9,6 +14,7 @@ export default function ProtectedRoute({ allowedRoles }: Props) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
+  // Show spinner while rehydrating auth from localStorage
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -21,9 +27,16 @@ export default function ProtectedRoute({ allowedRoles }: Props) {
   }
 
   if (!isAuthenticated) {
+    if (IS_PROD) {
+      // Production — no local login page, send to ERP portal
+      window.location.href = ERP_PORTAL;
+      return null;
+    }
+    // Development — show local login page, preserve intended destination
     return <Navigate to="/signin" state={{ from: location }} replace />;
   }
 
+  // Role check
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }

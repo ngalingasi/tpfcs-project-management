@@ -214,6 +214,17 @@ const getProjectById = async (id, conn = null) => {
     [id]
   );
 
+  // Sites
+  project.sites = await exec(
+    `SELECT s.*, r.region_name, o.title AS objective_title, o.status AS objective_status
+     FROM project_sites s
+     LEFT JOIN regions r    ON r.region_id    = s.region_id
+     LEFT JOIN objectives o ON o.objective_id = s.objective_id
+     WHERE s.project_id = ?
+     ORDER BY s.created_at`,
+    [id]
+  );
+
   return project;
 };
 

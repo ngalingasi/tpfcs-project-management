@@ -26,7 +26,7 @@ const activitySchema = {
     start_date:       Joi.date().optional().allow(null),
     end_date:         Joi.date().optional().allow(null),
     status:           Joi.string().valid(...ACTIVITY_STATUS_LIST).optional(),
-    budgeted_amount:  Joi.number().positive().required(),
+    budgeted_amount:  Joi.number().min(0).optional().allow(null),
   }),
 };
 
@@ -72,7 +72,7 @@ const subActivitySchema = {
     start_date:       Joi.date().optional().allow(null),
     end_date:         Joi.date().optional().allow(null),
     status:           Joi.string().valid(...ACTIVITY_STATUS_LIST).optional(),
-    budgeted_amount:  Joi.number().positive().required(),
+    budgeted_amount:  Joi.number().min(0).optional().allow(null),
   }),
 };
 
@@ -102,6 +102,11 @@ router.post('/:activityId/sub-activities', auth('manageActivities'), validate(su
 // ── Documents ─────────────────────────────────────────────────────────────────
 router.get( '/:activityId/documents', auth('getActivities'),    activityController.getDocuments);
 router.post('/:activityId/documents', auth('getActivities'),    upload.single('file'), activityController.uploadDocument);
+
+// ── Document comments ─────────────────────────────────────────────────────────
+router.get(   '/:activityId/documents/:documentId/comments',            auth('getActivities'), activityController.getDocumentComments);
+router.post(  '/:activityId/documents/:documentId/comments',            auth('getActivities'), activityController.addDocumentComment);
+router.delete('/:activityId/documents/:documentId/comments/:commentId', auth('getActivities'), activityController.deleteDocumentComment);
 
 // ── Comments ──────────────────────────────────────────────────────────────────
 router.get(   '/:activityId/comments',             auth('getActivities'), activityController.getComments);

@@ -14,11 +14,16 @@ export default defineConfig(({ mode }) => ({
     }),
   ],
   define: {
-    // Dev:  API at localhost:3003
-    // Prod: API on same domain at /api
+    // Development: API runs on localhost:3000
+    // Production: API is on the same host at /api
     'import.meta.env.VITE_API_URL': mode === 'production'
       ? JSON.stringify('/api')
       : JSON.stringify('http://localhost:3003/api'),
+
+    // Explicit production flag — used to switch ERP portal integration on/off
+    'import.meta.env.VITE_IS_PRODUCTION': mode === 'production'
+      ? JSON.stringify('true')
+      : JSON.stringify('false'),
   },
   build: {
     outDir: "dist",

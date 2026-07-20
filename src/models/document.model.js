@@ -7,10 +7,10 @@ const ApiError = require('../utils/ApiError');
 /**
  * Create a document record and save the first version
  */
-const createDocument = async ({ project_id, activity_id, name }, file, creatorId) => {
+const createDocument = async ({ project_id, activity_id, name, description = null, category = 'document' }, file, creatorId) => {
   const docResult = await query(
-    'INSERT INTO documents (project_id, activity_id, name, created_by) VALUES (?,?,?,?)',
-    [project_id || null, activity_id || null, name, creatorId]
+    'INSERT INTO documents (project_id, activity_id, name, description, category, created_by) VALUES (?,?,?,?,?,?)',
+    [project_id || null, activity_id || null, name, description, category, creatorId]
   );
   const docId = docResult.insertId;
 
@@ -66,7 +66,44 @@ const getDocumentById = async (id) => {
      WHERE dv.document_id = ? ORDER BY dv.version_number DESC`,
     [id]
   );
+  const cnt = await query('SELECT COUNT(*) AS c FROM document_comments WHERE document_id = ?', [id]);
+  doc.comment_count = cnt[0]?.c ?? 0;
   return doc;
+};
+
+/**
+ * Comments on a document
+ */
+const getDocumentComments = async (documentId) => {
+  return query(
+    `SELECT c.*, u.full_name AS created_by_name
+     FROM document_comments c
+     LEFT JOIN users u ON u.user_id = c.created_by
+     WHERE c.document_id = ?
+     ORDER BY c.created_at ASC`,
+    [documentId]
+  );
+};
+
+const addDocumentComment = async (documentId, comment, creatorId) => {
+  const result = await query(
+    'INSERT INTO document_comments (document_id, comment, created_by) VALUES (?,?,?)',
+    [documentId, comment, creatorId]
+  );
+  const rows = await query(
+    `SELECT c.*, u.full_name AS created_by_name
+     FROM document_comments c
+     LEFT JOIN users u ON u.user_id = c.created_by
+     WHERE c.comment_id = ?`,
+    [result.insertId]
+  );
+  return rows[0];
+};
+
+const deleteDocumentComment = async (commentId) => {
+  const rows = await query('SELECT comment_id FROM document_comments WHERE comment_id = ?', [commentId]);
+  if (!rows.length) throw new ApiError(httpStatus.NOT_FOUND, 'Comment not found');
+  await query('DELETE FROM document_comments WHERE comment_id = ?', [commentId]);
 };
 
 /**
@@ -85,20 +122,26 @@ const deleteDocument = async (id) => {
 
 module.exports = { createDocument, addDocumentVersion, getDocumentsByProject, getDocumentById, deleteDocument };
 
-const getDocumentsByActivity = async (activityId) => {
+const getDocumentsByActivity = async (activityId, category = null) => {
+  const params = [activityId];
+  let categoryClause = '';
+  if (category) { categoryClause = ' AND d.category = ?'; params.push(category); }
   return query(
     `SELECT d.*, dv.file_path, dv.mime_type, dv.size, dv.version_number,
-            u.full_name AS uploaded_by_name
+            u.full_name AS uploaded_by_name,
+            (SELECT COUNT(*) FROM document_comments dc WHERE dc.document_id = d.document_id) AS comment_count
      FROM documents d
      JOIN document_versions dv ON dv.document_id = d.document_id
        AND dv.version_number = (
          SELECT MAX(v2.version_number) FROM document_versions v2 WHERE v2.document_id = d.document_id
        )
      LEFT JOIN users u ON u.user_id = dv.uploaded_by
-     WHERE d.activity_id = ?
+     WHERE d.activity_id = ?${categoryClause}
      ORDER BY d.created_at DESC`,
-    [activityId]
+    params
   );
 };
 
-module.exports = Object.assign(module.exports || {}, { getDocumentsByActivity });
+module.exports = Object.assign(module.exports || {}, {
+  getDocumentsByActivity, getDocumentComments, addDocumentComment, deleteDocumentComment,
+});

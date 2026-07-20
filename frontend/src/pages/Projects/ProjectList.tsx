@@ -97,12 +97,20 @@ export default function ProjectList() {
                       {p.end_date ? ` – ${new Date(p.end_date).getFullYear()}` : ''}
                     </td>
                     <td className="px-4 py-4">
-                      <Link
-                        to={`/projects/${p.project_id}`}
-                        className="text-brand-500 hover:text-brand-600 font-medium"
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          to={`/projects/${p.project_id}`}
+                          className="text-brand-500 hover:text-brand-600 font-medium"
+                        >
+                          View
+                        </Link>
+                        <Link
+                          to={`/projects/${p.project_id}/overview`}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-medium"
+                        >
+                          Overview
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))

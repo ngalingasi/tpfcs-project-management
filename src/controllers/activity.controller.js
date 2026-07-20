@@ -130,7 +130,7 @@ const getSubActivities = catchAsync(async (req, res) => {
   res.send(result);
 });
 
-// ── Documents ─────────────────────────────────────────────────────────────────
+// ── Documents & Pictures ─────────────────────────────────────────────────────
 const uploadDocument = catchAsync(async (req, res) => {
   const perms = await getActivityPerms(req, req.params.activityId);
   if (!perms.canUploadDocument) {
@@ -138,8 +138,14 @@ const uploadDocument = catchAsync(async (req, res) => {
   }
   if (!req.file) throw new ApiError(httpStatus.BAD_REQUEST, 'No file uploaded');
 
+  const category = req.body.category === 'picture' ? 'picture' : 'document';
   const doc = await documentModel.createDocument(
-    { activity_id: Number(req.params.activityId), name: req.body.name || req.file.originalname },
+    {
+      activity_id: Number(req.params.activityId),
+      name: req.body.name || req.file.originalname,
+      description: req.body.description || null,
+      category,
+    },
     req.file,
     req.user.user_id
   );
@@ -149,8 +155,40 @@ const uploadDocument = catchAsync(async (req, res) => {
 const getDocuments = catchAsync(async (req, res) => {
   const perms = await getActivityPerms(req, req.params.activityId);
   if (!perms.canView) throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
-  const docs = await documentModel.getDocumentsByActivity(Number(req.params.activityId));
+  const category = req.query.category === 'picture' || req.query.category === 'document' ? req.query.category : null;
+  const docs = await documentModel.getDocumentsByActivity(Number(req.params.activityId), category);
   res.send(docs);
+});
+
+// ── Document Comments ────────────────────────────────────────────────────────
+const getDocumentComments = catchAsync(async (req, res) => {
+  const perms = await getActivityPerms(req, req.params.activityId);
+  if (!perms.canView) throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
+  const comments = await documentModel.getDocumentComments(req.params.documentId);
+  res.send(comments);
+});
+
+const addDocumentComment = catchAsync(async (req, res) => {
+  const perms = await getActivityPerms(req, req.params.activityId);
+  if (!perms.canComment) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to comment on this activity');
+  }
+  if (!req.body.comment?.trim()) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Comment text is required');
+  }
+  const comment = await documentModel.addDocumentComment(
+    req.params.documentId,
+    req.body.comment.trim(),
+    req.user.user_id
+  );
+  res.status(httpStatus.CREATED).send(comment);
+});
+
+const deleteDocumentComment = catchAsync(async (req, res) => {
+  const perms = await getActivityPerms(req, req.params.activityId);
+  if (!perms.canView) throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
+  await documentModel.deleteDocumentComment(req.params.commentId);
+  res.status(httpStatus.NO_CONTENT).send();
 });
 
 // ── Comments ──────────────────────────────────────────────────────────────────
@@ -188,5 +226,6 @@ module.exports = {
   getActivities, getActivity, createActivity, updateActivity,
   createSubActivity, deleteActivity, getStatusHistory, getSubActivities,
   uploadDocument, getDocuments,
+  getDocumentComments, addDocumentComment, deleteDocumentComment,
   getComments, addComment, deleteComment,
 };

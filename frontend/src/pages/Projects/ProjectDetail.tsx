@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
-import { projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, lookupsApi } from '../../api';
-import type { Project, Objective, Target, Activity, ProjectBudgetSummary } from '../../types';
+import { projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, lookupsApi, sitesApi } from '../../api';
+import type { Project, Objective, Target, Activity, ProjectBudgetSummary, ProjectSite, Region } from '../../types';
+import { useAuth } from '../../store/authStore';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import BulletList from '../../components/tpfcs/BulletList';
@@ -10,7 +11,7 @@ import { documentsApi } from '../../api';
 import Modal from '../../components/tpfcs/Modal';
 import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
 
-type Tab = 'details' | 'objectives' | 'targets' | 'activities' | 'documents';
+type Tab = 'sites' | 'details' | 'objectives' | 'targets' | 'activities' | 'documents';
 
 // ── Objective Form ────────────────────────────────────────────────────────────
 function ObjectiveForm({ projectId, onSaved, onClose }: { projectId: number; onSaved: () => void; onClose: () => void }) {
@@ -166,24 +167,120 @@ function AllocateBudgetForm({ target, projectBudget, onSaved, onClose }: {
   );
 }
 
+// ── Site Form ─────────────────────────────────────────────────────────────────
+function SiteForm({
+  projectId, regions, objectives, site, onSaved, onClose,
+}: {
+  projectId: number;
+  regions: Region[];
+  objectives: Objective[];
+  site?: ProjectSite | null;
+  onSaved: () => void;
+  onClose: () => void;
+}) {
+  const [form, setForm] = useState({
+    site_name:    site?.site_name ?? '',
+    region_id:    site?.region_id?.toString() ?? '',
+    objective_id: site?.objective_id?.toString() ?? '',
+    district:     site?.district ?? '',
+    ward:         site?.ward ?? '',
+    description:  site?.description ?? '',
+    latitude:     site?.latitude?.toString() ?? '',
+    longitude:    site?.longitude?.toString() ?? '',
+    status:       site?.status ?? 'planned',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.site_name.trim()) { setError('Site name is required'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        site_name:    form.site_name,
+        region_id:    form.region_id ? Number(form.region_id) : null,
+        objective_id: form.objective_id ? Number(form.objective_id) : null,
+        district:     form.district || null,
+        ward:         form.ward || null,
+        description:  form.description || null,
+        latitude:     form.latitude ? Number(form.latitude) : null,
+        longitude:    form.longitude ? Number(form.longitude) : null,
+        status:       form.status as ProjectSite['status'],
+      };
+      if (site) {
+        await sitesApi.update(site.site_id, payload);
+      } else {
+        await sitesApi.create(projectId, payload);
+      }
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Failed to save');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <form onSubmit={save} className="space-y-4">
+      {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg">{error}</p>}
+      <FormInput label="Site Name" required value={form.site_name} onChange={e => set('site_name', e.target.value)} placeholder="e.g. Kigamboni Borehole Site" />
+      <div className="grid grid-cols-2 gap-3">
+        <FormSelect label="Region" value={form.region_id} onChange={e => set('region_id', e.target.value)}>
+          <option value="">Select region...</option>
+          {regions.map(r => <option key={r.region_id} value={r.region_id}>{r.region_name}</option>)}
+        </FormSelect>
+        <FormSelect label="Objective" value={form.objective_id} onChange={e => set('objective_id', e.target.value)}>
+          <option value="">Select objective...</option>
+          {objectives.map(o => <option key={o.objective_id} value={o.objective_id}>{o.title}</option>)}
+        </FormSelect>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FormInput label="District" value={form.district} onChange={e => set('district', e.target.value)} placeholder="District" />
+        <FormInput label="Ward" value={form.ward} onChange={e => set('ward', e.target.value)} placeholder="Ward" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FormInput label="Latitude" type="number" value={form.latitude} onChange={e => set('latitude', e.target.value)} placeholder="e.g. -6.792354" />
+        <FormInput label="Longitude" type="number" value={form.longitude} onChange={e => set('longitude', e.target.value)} placeholder="e.g. 39.208328" />
+      </div>
+      <FormSelect label="Status" value={form.status} onChange={e => set('status', e.target.value)}>
+        <option value="planned">Planned</option>
+        <option value="active">Active</option>
+        <option value="completed">Completed</option>
+        <option value="on_hold">On Hold</option>
+      </FormSelect>
+      <FormTextArea label="Description" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Additional site details..." />
+      <div className="flex justify-end gap-3 pt-2">
+        <button type="button" onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400">Cancel</button>
+        <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50">{saving ? 'Saving...' : site ? 'Save Changes' : 'Add Site'}</button>
+      </div>
+    </form>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const pid      = Number(id);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canManageSites = user?.role === 'admin' || user?.role === 'manager';
 
   const [project,      setProject]      = useState<Project | null>(null);
   const [objectives,   setObjectives]   = useState<Objective[]>([]);
   const [targets,      setTargets]      = useState<Target[]>([]);
   const [activities,   setActivities]   = useState<Activity[]>([]);
+  const [sites,        setSites]        = useState<ProjectSite[]>([]);
+  const [regions,      setRegions]      = useState<Region[]>([]);
   const [budget,       setBudget]       = useState<ProjectBudgetSummary | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [tab,          setTab]          = useState<Tab>('details');
-  const [modal,        setModal]        = useState<'objective' | 'target' | 'allocate' | null>(null);
+  const [modal,        setModal]        = useState<'objective' | 'target' | 'allocate' | 'site' | null>(null);
   const [documents,     setDocuments]     = useState<any[]>([]);
   const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string}|null>(null);
   const [uploadingDoc,  setUploadingDoc]  = useState(false);
   const [allocateTarget, setAllocateTarget] = useState<Target | null>(null);
+  const [editSite,      setEditSite]      = useState<ProjectSite | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -196,6 +293,8 @@ export default function ProjectDetail() {
       setObjectives(oRes.data);
       budgetApi.projectSummary(pid).then(r => setBudget(r.data)).catch(() => {});
       documentsApi.listByProject(pid).then(r => setDocuments(r.data)).catch(() => {});
+      sitesApi.listByProject(pid).then(r => setSites(r.data)).catch(() => {});
+      lookupsApi.regions().then(r => setRegions(r.data)).catch(() => {});
 
       // Load targets across all objectives
       const allTargets: Target[] = [];
@@ -217,11 +316,18 @@ export default function ProjectDetail() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  const deleteSite = async (siteId: number) => {
+    if (!confirm('Delete this site?')) return;
+    await sitesApi.delete(siteId);
+    loadAll();
+  };
+
   const fmt = (n?: number | string | null) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
   const dt  = (s?: string) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
     { key: 'details',    label: 'Details' },
+    { key: 'sites',      label: 'Sites',      count: sites.length },
     { key: 'objectives', label: 'Objectives', count: objectives.length },
     { key: 'targets',    label: 'Targets',    count: targets.length },
     { key: 'activities', label: 'Activities', count: activities.length },
@@ -249,13 +355,6 @@ export default function ProjectDetail() {
   return (
     <div className="p-4 sm:p-6 space-y-5">
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-        <Link to="/projects" className="hover:text-brand-500">Projects</Link>
-        <span>/</span>
-        <span className="text-gray-700 dark:text-gray-300 font-medium truncate">{project.name}</span>
-      </div>
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
@@ -263,7 +362,7 @@ export default function ProjectDetail() {
           <div className="flex items-center gap-3 mt-1 flex-wrap text-sm text-gray-500 dark:text-gray-400">
             {project.project_reference && <span>Ref: {project.project_reference}</span>}
             {project.sector_name && <span>· {project.sector_name}</span>}
-            {project.project_manager_name && <span>· PM: {project.project_manager_name}</span>}
+            {project.project_manager_name && <span>· <span className="font-bold">Project Manager</span>: {project.project_manager_name}</span>}
           </div>
         </div>
         <Link to={`/projects/${pid}/edit`}
@@ -343,7 +442,7 @@ export default function ProjectDetail() {
           {/* Financing Modality table */}
           {(project.financing?.length ?? 0) > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">Financing Modality</p>
+              <p className="text-xs font-bold text-gray-400 dark:text-gray-500 mb-3">Financing Modality</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
@@ -406,7 +505,7 @@ export default function ProjectDetail() {
             { label: 'Project Scope',         value: project.project_scope,           bullets: true  },
           ].filter(i => i.value).map(i => (
             <div key={i.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-              <p className="text-xs text-gray-400 mb-2">{i.label}</p>
+              <p className="text-xs font-bold text-gray-400 mb-2">{i.label}</p>
               {i.bullets ? <BulletList value={i.value} /> : <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{i.value}</p>}
             </div>
           ))}
@@ -414,7 +513,7 @@ export default function ProjectDetail() {
           {/* Regions */}
           {(project.regions?.length ?? 0) > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-              <p className="text-xs text-gray-400 mb-2">Regions</p>
+              <p className="text-xs font-bold text-gray-400 mb-2">Regions</p>
               <div className="flex flex-wrap gap-2">
                 {project.regions!.map(r => (
                   <span key={r.region_id} className="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">
@@ -428,7 +527,7 @@ export default function ProjectDetail() {
           {/* Implementers table */}
           {(project.implementers?.length ?? 0) > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-              <p className="text-xs text-gray-400 mb-3">Project Implementers</p>
+              <p className="text-xs font-bold text-gray-400 mb-3">Project Implementers</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400">
@@ -457,7 +556,7 @@ export default function ProjectDetail() {
           {/* Coordinators */}
           {(project.coordinators?.length ?? 0) > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-              <p className="text-xs text-gray-400 mb-3">Project Coordinators</p>
+              <p className="text-xs font-bold text-gray-400 mb-3">Project Coordinators</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400">
@@ -482,7 +581,7 @@ export default function ProjectDetail() {
           {/* Employment */}
           {(project.employment?.length ?? 0) > 0 && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-              <p className="text-xs text-gray-400 mb-3">Employment Category</p>
+              <p className="text-xs font-bold text-gray-400 mb-3">Employment Category</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead><tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400">
@@ -508,6 +607,50 @@ export default function ProjectDetail() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SITES TAB ── */}
+      {tab === 'sites' && (
+        <div className="space-y-3">
+          {canManageSites && (
+            <div className="flex justify-end">
+              <button onClick={() => { setEditSite(null); setModal('site'); }}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Add Site
+              </button>
+            </div>
+          )}
+          {sites.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">No sites yet. {canManageSites ? 'Add the first one.' : ''}</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sites.map(s => (
+                <div key={s.site_id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{s.site_name}</h3>
+                    <StatusBadge status={s.status} />
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                    {s.region_name && <p>Region: <span className="text-gray-700 dark:text-gray-300 font-medium">{s.region_name}</span></p>}
+                    {(s.district || s.ward) && <p>{[s.district, s.ward].filter(Boolean).join(', ')}</p>}
+                    {s.objective_title && <p>Objective: <span className="text-gray-700 dark:text-gray-300 font-medium">{s.objective_title}</span></p>}
+                    {(s.latitude != null && s.longitude != null) && <p>{s.latitude}, {s.longitude}</p>}
+                  </div>
+                  {s.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{s.description}</p>}
+                  {canManageSites && (
+                    <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+                      <button onClick={() => { setEditSite(s); setModal('site'); }}
+                        className="text-xs text-brand-500 hover:text-brand-600 font-medium">Edit</button>
+                      <button onClick={() => deleteSite(s.site_id)}
+                        className="text-xs text-red-500 hover:text-red-600 font-medium">Delete</button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -753,6 +896,17 @@ export default function ProjectDetail() {
       )}
 
       {/* ── Modals ── */}
+      <Modal isOpen={modal === 'site'} onClose={() => { setModal(null); setEditSite(null); }} title={editSite ? 'Edit Site' : 'Add Site'} size="md">
+        <SiteForm
+          projectId={pid}
+          regions={regions}
+          objectives={objectives}
+          site={editSite}
+          onSaved={loadAll}
+          onClose={() => { setModal(null); setEditSite(null); }}
+        />
+      </Modal>
+
       <Modal isOpen={modal === 'objective'} onClose={() => setModal(null)} title="Add Objective" size="md">
         <ObjectiveForm projectId={pid} onSaved={loadAll} onClose={() => setModal(null)} />
       </Modal>

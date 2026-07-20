@@ -14,6 +14,9 @@ const STATUS_STYLES: Record<string, string> = {
   off_track:   'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
   achieved:    'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300',
   missed:      'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
+  // site
+  planned:     'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
+  active:      'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -28,6 +31,8 @@ const STATUS_LABELS: Record<string, string> = {
   off_track:   'Off Track',
   achieved:    'Achieved',
   missed:      'Missed',
+  planned:     'Planned',
+  active:      'Active',
 };
 
 interface Props {

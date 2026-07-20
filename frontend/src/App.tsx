@@ -35,6 +35,7 @@ import LogisticsTransactionDetail    from "./pages/Logistics/LogisticsTransactio
 // Projects
 import ProjectList        from "./pages/Projects/ProjectList";
 import ProjectDetail      from "./pages/Projects/ProjectDetail";
+import ProjectOverview    from "./pages/Projects/ProjectOverview";
 import ProjectForm        from "./pages/Projects/ProjectForm";
 
 // Activities
@@ -108,6 +109,7 @@ export default function App() {
               <Route path="/projects"                  element={<ProjectList />} />
               <Route path="/projects/new"              element={<ProjectForm />} />
               <Route path="/projects/:id"              element={<ProjectDetail />} />
+              <Route path="/projects/:id/overview"     element={<ProjectOverview />} />
               <Route path="/projects/:id/edit"         element={<ProjectForm />} />
 
               {/* Activities */}

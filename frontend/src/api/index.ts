@@ -2,7 +2,7 @@ import client from './client';
 import type {
   Objective, Target, Activity, BudgetRevision,
   Document, UserRecord, Sector, Region, Implementer,
-  PaginatedResponse, ProjectBudgetSummary, TargetBudgetSummary,
+  PaginatedResponse, ProjectBudgetSummary, TargetBudgetSummary, ProjectSite,
 } from '../types';
 
 export { authApi } from './auth';
@@ -21,6 +21,20 @@ export const objectivesApi = {
     client.patch<Objective>(`/objectives/${id}`, data),
   delete: (id: number) =>
     client.delete(`/objectives/${id}`),
+};
+
+// ── Sites ─────────────────────────────────────────────────────────────────────
+export const sitesApi = {
+  listByProject: (projectId: number) =>
+    client.get<ProjectSite[]>(`/projects/${projectId}/sites`),
+  get: (id: number) =>
+    client.get<ProjectSite>(`/sites/${id}`),
+  create: (projectId: number, data: Partial<ProjectSite>) =>
+    client.post<ProjectSite>(`/projects/${projectId}/sites`, data),
+  update: (id: number, data: Partial<ProjectSite>) =>
+    client.patch<ProjectSite>(`/sites/${id}`, data),
+  delete: (id: number) =>
+    client.delete(`/sites/${id}`),
 };
 
 // ── Targets ───────────────────────────────────────────────────────────────────
@@ -63,10 +77,16 @@ export const activitiesApi = {
     client.get(`/activities/${id}/sub-activities`),
   createSubActivity: (id: number, data: any) =>
     client.post(`/activities/${id}/sub-activities`, data),
-  getDocuments: (id: number) =>
-    client.get(`/activities/${id}/documents`),
+  getDocuments: (id: number, category?: 'document' | 'picture') =>
+    client.get(`/activities/${id}/documents`, { params: category ? { category } : undefined }),
   uploadDocument: (id: number, formData: FormData) =>
     client.post(`/activities/${id}/documents`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getDocumentComments: (activityId: number, documentId: number) =>
+    client.get(`/activities/${activityId}/documents/${documentId}/comments`),
+  addDocumentComment: (activityId: number, documentId: number, comment: string) =>
+    client.post(`/activities/${activityId}/documents/${documentId}/comments`, { comment }),
+  deleteDocumentComment: (activityId: number, documentId: number, commentId: number) =>
+    client.delete(`/activities/${activityId}/documents/${documentId}/comments/${commentId}`),
   getComments: (id: number) =>
     client.get(`/activities/${id}/comments`),
   addComment: (id: number, comment: string) =>
