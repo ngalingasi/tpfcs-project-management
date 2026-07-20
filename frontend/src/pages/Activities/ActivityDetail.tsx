@@ -36,7 +36,7 @@ export default function ActivityDetail() {
   const [pictures,      setPictures]      = useState<any[]>([]);
   const [commentText,   setCommentText]   = useState('');
   const [addingComment, setAddingComment] = useState(false);
-  const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string;documentId?:number;description?:string|null}|null>(null);
+  const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string;documentId?:number;description?:string|null;category?:'document'|'picture';doc?:any}|null>(null);
   const [docComments,   setDocComments]   = useState<any[]>([]);
   const [uploadModal,   setUploadModal]   = useState<'document' | 'picture' | null>(null);
   const [uploadForm,    setUploadForm]    = useState({ name: '', description: '', file: null as File | null });
@@ -154,8 +154,8 @@ export default function ActivityDetail() {
     }
   };
 
-  const openDocPreview = async (doc: any) => {
-    setPreviewDoc({ url: fileUrl(doc), name: doc.name, mime: doc.mime_type, documentId: doc.document_id, description: doc.description });
+  const openDocPreview = async (doc: any, category: 'document' | 'picture' = 'document') => {
+    setPreviewDoc({ url: fileUrl(doc), name: doc.name, mime: doc.mime_type, documentId: doc.document_id, description: doc.description, category, doc });
     setDocComments([]);
     try {
       const res = await activitiesApi.getDocumentComments(aid, doc.document_id);
@@ -187,6 +187,36 @@ export default function ActivityDetail() {
       setPictures(drop);
     } catch { toast.error('Failed to delete comment'); }
   };
+
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<{ doc: any; category: 'document' | 'picture' } | null>(null);
+  const [deletingDoc, setDeletingDoc] = useState(false);
+
+  const requestDeleteDocument = (doc: any, category: 'document' | 'picture') => {
+    setConfirmDeleteDoc({ doc, category });
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!confirmDeleteDoc) return;
+    const { doc, category } = confirmDeleteDoc;
+    setDeletingDoc(true);
+    try {
+      await activitiesApi.deleteDocument(aid, doc.document_id);
+      if (category === 'picture') {
+        setPictures(prev => prev.filter(d => d.document_id !== doc.document_id));
+      } else {
+        setDocuments(prev => prev.filter(d => d.document_id !== doc.document_id));
+      }
+      if (previewDoc?.documentId === doc.document_id) setPreviewDoc(null);
+      toast.success('Deleted', doc.name);
+      setConfirmDeleteDoc(null);
+    } catch (err: any) {
+      toast.error('Delete failed', err?.response?.data?.message ?? 'Could not delete this file');
+    } finally {
+      setDeletingDoc(false);
+    }
+  };
+
+  const canDeleteDoc = (doc: any) => user?.role === 'admin' || user?.role === 'manager' || Number(doc.created_by) === user?.user_id;
 
   const fmt  = (n?: number | string | null) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
   const dt   = (s?: string | null) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -540,7 +570,7 @@ export default function ActivityDetail() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
-                      onClick={() => openDocPreview(doc)}
+                      onClick={() => openDocPreview(doc, 'document')}
                       className="flex items-center gap-1 text-xs text-brand-500 hover:text-brand-600"
                     >
                       Preview
@@ -555,6 +585,15 @@ export default function ActivityDetail() {
                       className="text-xs text-gray-500 hover:text-brand-600">
                       Download
                     </a>
+                    {canDeleteDoc(doc) && (
+                      <>
+                        <span className="text-gray-300 dark:text-gray-600">·</span>
+                        <button
+                          onClick={() => requestDeleteDocument(doc, 'document')}
+                          className="text-xs text-gray-400 hover:text-red-500"
+                        >Delete</button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -579,25 +618,37 @@ export default function ActivityDetail() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {pictures.map((pic: any) => (
-                <button
+                <div
                   key={pic.document_id}
-                  onClick={() => openDocPreview(pic)}
-                  className="group relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 aspect-square text-left"
+                  className="group relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 aspect-square"
                 >
-                  <img
-                    src={fileUrl(pic)}
-                    alt={pic.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2 pt-6">
-                    <p className="text-xs font-medium text-white truncate">{pic.name}</p>
-                  </div>
+                  <button onClick={() => openDocPreview(pic, 'picture')} className="block w-full h-full text-left">
+                    <img
+                      src={fileUrl(pic)}
+                      alt={pic.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2 pt-6">
+                      <p className="text-xs font-medium text-white truncate">{pic.name}</p>
+                    </div>
+                  </button>
                   {pic.comment_count > 0 && (
-                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-medium">
+                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-medium pointer-events-none">
                       {pic.comment_count} 💬
                     </span>
                   )}
-                </button>
+                  {canDeleteDoc(pic) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); requestDeleteDocument(pic, 'picture'); }}
+                      className="absolute top-2 left-2 w-7 h-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-opacity"
+                      title="Delete picture"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -851,13 +902,14 @@ export default function ActivityDetail() {
           onAddComment={previewDoc.documentId ? handleAddDocComment : undefined}
           onDeleteComment={previewDoc.documentId ? handleDeleteDocComment : undefined}
           canDeleteComment={(c) => user?.role === 'admin' || Number(c.created_by) === user?.user_id}
+          onDelete={previewDoc.doc && canDeleteDoc(previewDoc.doc) ? () => requestDeleteDocument(previewDoc.doc, previewDoc.category ?? 'document') : undefined}
           onClose={() => setPreviewDoc(null)}
         />
       )}
 
       {/* Upload Document / Picture Modal */}
-      <Modal isOpen={!!uploadModal} onClose={() => setUploadModal(null)} title={uploadModal === 'picture' ? 'Upload Picture' : 'Upload Document'} size="sm">
-        <form onSubmit={handleUpload} className="space-y-4">
+      <Modal isOpen={!!uploadModal} onClose={() => setUploadModal(null)} title={uploadModal === 'picture' ? 'Upload Picture' : 'Upload Document'} size="xl">
+        <form onSubmit={handleUpload} className="space-y-5">
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               {uploadModal === 'picture' ? 'Picture' : 'File'} <span className="text-red-500">*</span>
@@ -883,6 +935,7 @@ export default function ActivityDetail() {
           </div>
           <FormTextArea
             label="Description"
+            rows={8}
             value={uploadForm.description}
             onChange={e => setUploadForm(f => ({ ...f, description: e.target.value }))}
             placeholder={uploadModal === 'picture' ? 'What does this picture show?' : 'What is this document about?'}
@@ -945,6 +998,41 @@ export default function ActivityDetail() {
           <div className="flex justify-end gap-3">
             <button onClick={() => setDeleteModal(false)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600">Cancel</button>
             <button onClick={handleDelete} className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Document/Picture Confirmation */}
+      <Modal isOpen={!!confirmDeleteDoc} onClose={() => setConfirmDeleteDoc(null)} title="Confirm Delete" size="sm">
+        <div className="space-y-4 text-center -mt-2">
+          <div className="w-14 h-14 mx-auto rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
+            <svg className="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+          <div>
+            <h4 className="text-base font-semibold text-gray-800 dark:text-white">
+              Delete this {confirmDeleteDoc?.category === 'picture' ? 'picture' : 'document'}?
+            </h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">
+              <span className="font-medium text-gray-700 dark:text-gray-300">"{confirmDeleteDoc?.doc?.name}"</span> will be permanently removed, along with its comments. This cannot be undone.
+            </p>
+          </div>
+          <div className="flex justify-center gap-3 pt-1">
+            <button
+              onClick={() => setConfirmDeleteDoc(null)}
+              disabled={deletingDoc}
+              className="px-5 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteDocument}
+              disabled={deletingDoc}
+              className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
+            >
+              {deletingDoc ? 'Deleting...' : 'Delete'}
+            </button>
           </div>
         </div>
       </Modal>

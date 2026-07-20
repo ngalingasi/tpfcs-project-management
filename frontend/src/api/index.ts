@@ -81,6 +81,8 @@ export const activitiesApi = {
     client.get(`/activities/${id}/documents`, { params: category ? { category } : undefined }),
   uploadDocument: (id: number, formData: FormData) =>
     client.post(`/activities/${id}/documents`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deleteDocument: (activityId: number, documentId: number) =>
+    client.delete(`/activities/${activityId}/documents/${documentId}`),
   getDocumentComments: (activityId: number, documentId: number) =>
     client.get(`/activities/${activityId}/documents/${documentId}/comments`),
   addDocumentComment: (activityId: number, documentId: number, comment: string) =>

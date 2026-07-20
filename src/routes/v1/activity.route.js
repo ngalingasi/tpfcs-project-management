@@ -102,6 +102,7 @@ router.post('/:activityId/sub-activities', auth('manageActivities'), validate(su
 // ── Documents ─────────────────────────────────────────────────────────────────
 router.get( '/:activityId/documents', auth('getActivities'),    activityController.getDocuments);
 router.post('/:activityId/documents', auth('getActivities'),    upload.single('file'), activityController.uploadDocument);
+router.delete('/:activityId/documents/:documentId', auth('getActivities'), activityController.deleteDocument);
 
 // ── Document comments ─────────────────────────────────────────────────────────
 router.get(   '/:activityId/documents/:documentId/comments',            auth('getActivities'), activityController.getDocumentComments);

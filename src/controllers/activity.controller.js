@@ -160,6 +160,17 @@ const getDocuments = catchAsync(async (req, res) => {
   res.send(docs);
 });
 
+const deleteDocument = catchAsync(async (req, res) => {
+  const perms = await getActivityPerms(req, req.params.activityId);
+  const doc = await documentModel.getDocumentById(req.params.documentId);
+  const isOwner = Number(doc.created_by) === req.user.user_id;
+  if (!isOwner && req.user.role !== 'admin' && !perms.canUploadDocument) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to delete this document');
+  }
+  await documentModel.deleteDocument(req.params.documentId);
+  res.status(httpStatus.NO_CONTENT).send();
+});
+
 // ── Document Comments ────────────────────────────────────────────────────────
 const getDocumentComments = catchAsync(async (req, res) => {
   const perms = await getActivityPerms(req, req.params.activityId);
@@ -225,7 +236,7 @@ const deleteComment = catchAsync(async (req, res) => {
 module.exports = {
   getActivities, getActivity, createActivity, updateActivity,
   createSubActivity, deleteActivity, getStatusHistory, getSubActivities,
-  uploadDocument, getDocuments,
+  uploadDocument, getDocuments, deleteDocument,
   getDocumentComments, addDocumentComment, deleteDocumentComment,
   getComments, addComment, deleteComment,
 };
