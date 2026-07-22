@@ -165,9 +165,9 @@ const updateActivity = async (id, body, updatorId) => {
   }
 
   const allowed = [
-    'name', 'description', 'council', 'ward', 'street', 'road_name',
-    'latitude', 'longitude', 'assigned_user_id', 'supervisor_id',
-    'start_date', 'end_date', 'progress', 'status',
+    'name', 'description', 'region_id', 'council', 'ward', 'street', 'road_name',
+    'latitude', 'longitude', 'global_id', 'assigned_user_id', 'supervisor_id',
+    'start_date', 'end_date', 'progress', 'status', 'main_activity_id',
   ];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
   if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');

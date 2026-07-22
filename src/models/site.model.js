@@ -10,6 +10,8 @@ const createSite = async (body, creatorId) => {
     site_name,
     district     = null,
     ward         = null,
+    street       = null,
+    road_name    = null,
     description  = null,
     latitude     = null,
     longitude    = null,
@@ -18,10 +20,10 @@ const createSite = async (body, creatorId) => {
 
   const result = await query(
     `INSERT INTO project_sites
-       (project_id, region_id, objective_id, site_name, district, ward,
+       (project_id, region_id, objective_id, site_name, district, ward, street, road_name,
         description, latitude, longitude, status, created_by)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-    [project_id, region_id, objective_id, site_name, district, ward,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [project_id, region_id, objective_id, site_name, district, ward, street, road_name,
       description, latitude, longitude, status, creatorId]
   );
   return getSiteById(result.insertId);
@@ -54,7 +56,7 @@ const getSiteById = async (id) => {
 
 const updateSite = async (id, body) => {
   const allowed = [
-    'region_id', 'objective_id', 'site_name', 'district', 'ward',
+    'region_id', 'objective_id', 'site_name', 'district', 'ward', 'street', 'road_name',
     'description', 'latitude', 'longitude', 'status',
   ];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));

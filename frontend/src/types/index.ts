@@ -150,6 +150,8 @@ export interface ProjectSite {
   site_name: string;
   district?: string | null;
   ward?: string | null;
+  street?: string | null;
+  road_name?: string | null;
   description?: string | null;
   latitude?: number | null;
   longitude?: number | null;

@@ -16,6 +16,8 @@ const siteSchema = {
     site_name:    Joi.string().required(),
     district:     Joi.string().optional().allow('', null),
     ward:         Joi.string().optional().allow('', null),
+    street:       Joi.string().optional().allow('', null),
+    road_name:    Joi.string().optional().allow('', null),
     description:  Joi.string().optional().allow('', null),
     latitude:     Joi.number().optional().allow(null),
     longitude:    Joi.number().optional().allow(null),

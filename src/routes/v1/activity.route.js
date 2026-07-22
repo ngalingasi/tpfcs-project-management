@@ -51,6 +51,7 @@ const updateActivitySchema = {
     end_date:         Joi.date().optional().allow(null),
     progress:         Joi.number().min(0).max(100).optional(),
     status:           Joi.string().valid(...ACTIVITY_STATUS_LIST).optional(),
+    main_activity_id: Joi.number().integer().optional().allow(null),
   }).min(1),
 };
 

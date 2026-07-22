@@ -184,6 +184,8 @@ function SiteForm({
     objective_id: site?.objective_id?.toString() ?? '',
     district:     site?.district ?? '',
     ward:         site?.ward ?? '',
+    street:       site?.street ?? '',
+    road_name:    site?.road_name ?? '',
     description:  site?.description ?? '',
     latitude:     site?.latitude?.toString() ?? '',
     longitude:    site?.longitude?.toString() ?? '',
@@ -204,6 +206,8 @@ function SiteForm({
         objective_id: form.objective_id ? Number(form.objective_id) : null,
         district:     form.district || null,
         ward:         form.ward || null,
+        street:       form.street || null,
+        road_name:    form.road_name || null,
         description:  form.description || null,
         latitude:     form.latitude ? Number(form.latitude) : null,
         longitude:    form.longitude ? Number(form.longitude) : null,
@@ -238,6 +242,10 @@ function SiteForm({
       <div className="grid grid-cols-2 gap-3">
         <FormInput label="District" value={form.district} onChange={e => set('district', e.target.value)} placeholder="District" />
         <FormInput label="Ward" value={form.ward} onChange={e => set('ward', e.target.value)} placeholder="Ward" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FormInput label="Street" value={form.street} onChange={e => set('street', e.target.value)} placeholder="Street" />
+        <FormInput label="Road" value={form.road_name} onChange={e => set('road_name', e.target.value)} placeholder="Road name" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <FormInput label="Latitude" type="number" value={form.latitude} onChange={e => set('latitude', e.target.value)} placeholder="e.g. -6.792354" />
@@ -637,6 +645,7 @@ export default function ProjectDetail() {
                   <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
                     {s.region_name && <p>Region: <span className="text-gray-700 dark:text-gray-300 font-medium">{s.region_name}</span></p>}
                     {(s.district || s.ward) && <p>{[s.district, s.ward].filter(Boolean).join(', ')}</p>}
+                    {(s.street || s.road_name) && <p>{[s.street, s.road_name].filter(Boolean).join(', ')}</p>}
                     {s.objective_title && <p>Objective: <span className="text-gray-700 dark:text-gray-300 font-medium">{s.objective_title}</span></p>}
                     {(s.latitude != null && s.longitude != null) && <p>{s.latitude}, {s.longitude}</p>}
                   </div>

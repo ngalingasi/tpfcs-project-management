@@ -175,6 +175,8 @@ export default function ActivityForm() {
       region_id: site.region_id != null ? String(site.region_id) : f.region_id,
       council:   site.district ?? f.council,
       ward:      site.ward     ?? f.ward,
+      street:    site.street    ?? f.street,
+      road_name: site.road_name ?? f.road_name,
       latitude:  site.latitude  != null ? String(site.latitude)  : f.latitude,
       longitude: site.longitude != null ? String(site.longitude) : f.longitude,
     }));
@@ -355,7 +357,7 @@ export default function ActivityForm() {
                   </option>
                 ))}
               </FormSelect>
-              <p className="mt-1 text-xs text-gray-400">Showing sites linked to this target's objective. Picking a site fills in Region, Council, Ward, Latitude and Longitude below — you can still adjust them.</p>
+              <p className="mt-1 text-xs text-gray-400">Showing sites linked to this target's objective. Picking a site fills in Region, Council, Ward, Street, Road, Latitude and Longitude below — you can still edit any of them.</p>
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
