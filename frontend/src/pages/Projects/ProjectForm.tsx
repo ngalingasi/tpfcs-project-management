@@ -6,6 +6,7 @@ import type {
   ProjectCoordinator, ProjectEmployment, ProjectFinancing,
 } from '../../types';
 import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
+import RichTextEditor from '../../components/tpfcs/RichTextEditor';
 import { toast } from '../../components/tpfcs/Toast';
 import BackButton from '../../components/tpfcs/BackButton';
 
@@ -290,7 +291,7 @@ export default function ProjectForm() {
 
         {/* Narrative */}
         <Section title="Project Narrative">
-          <FormTextArea label="Project Background" value={form.project_background} onChange={e => set('project_background', e.target.value)} placeholder="Describe the project background..." />
+          <RichTextEditor label="Project Background" value={form.project_background} onChange={html => set('project_background', html)} placeholder="Describe the project background..." />
           <div>
             <FormTextArea label="Project Objectives (comma-separated)" value={form.project_objectives} onChange={e => set('project_objectives', e.target.value)} placeholder="Improve security delivery, Transform Police culture, Enhance technology" />
             <p className="text-xs text-gray-400 mt-1">Separate with commas — shown as bullet list in preview</p>

@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const { query, transaction } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const { buildPagination } = require('../utils/paginate');
+const { sanitizeRichText } = require('../utils/sanitizeRichText');
 
 const createProject = async (body, creatorId) => {
   return transaction(async (conn) => {
@@ -54,7 +55,7 @@ const createProject = async (body, creatorId) => {
         name, programme_name, project_nature, sector_id, sub_sector,
         start_date, end_date,
         fund_structure, funding, estimated_cost, project_life_span,
-        project_background, project_objectives, project_main_activities,
+        sanitizeRichText(project_background), project_objectives, project_main_activities,
         project_beneficiaries, project_use_capacity, project_scope,
         cost_center, project_reference, relevancy_fypds,
         implementation_modality, compensation, has_land, job_created_no,
@@ -250,7 +251,7 @@ const updateProject = async (id, body, updatorId) => {
   // Update scalar fields
   if (fields.length) {
     const setClauses = fields.map((f) => `${f} = ?`).join(', ');
-    const values     = fields.map((f) => body[f]);
+    const values     = fields.map((f) => f === 'project_background' ? sanitizeRichText(body[f]) : body[f]);
     await query(`UPDATE projects SET ${setClauses} WHERE project_id = ?`, [...values, id]);
   }
 

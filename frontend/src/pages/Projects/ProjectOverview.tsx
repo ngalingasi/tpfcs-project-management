@@ -9,6 +9,7 @@ import type {
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import SearchableSelect from '../../components/tpfcs/SearchableSelect';
+import RichTextDisplay from '../../components/tpfcs/RichTextDisplay';
 
 // Chevron used on every expandable row
 function Chevron({ open }: { open: boolean }) {
@@ -254,7 +255,7 @@ export default function ProjectOverview() {
                           </div>
                           <p className="text-sm font-medium text-gray-800 dark:text-white">{objective.title}</p>
                           {objective.description && (
-                            <p className="text-xs text-gray-500 mt-1">{objective.description}</p>
+                            <RichTextDisplay html={objective.description} className="text-xs mt-1" />
                           )}
 
                           {/* Targets under this objective */}
@@ -282,6 +283,9 @@ export default function ProjectOverview() {
 
                                   {targetOpen && (
                                     <div className="border-t border-gray-100 dark:border-gray-800 p-3 space-y-2 bg-gray-50/50 dark:bg-gray-800/20">
+                                      {t.description && (
+                                        <RichTextDisplay html={t.description} className="text-xs pb-1" />
+                                      )}
                                       {targetActivities.length === 0 ? (
                                         <p className="text-xs text-gray-400">No activities under this target yet.</p>
                                       ) : targetActivities.map(a => (
@@ -290,7 +294,12 @@ export default function ProjectOverview() {
                                           to={`/activities/${a.activity_id}`}
                                           className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
                                         >
-                                          <p className="text-xs text-gray-700 dark:text-gray-300 truncate">{a.name}</p>
+                                          <div className="min-w-0">
+                                            <p className="text-xs text-gray-700 dark:text-gray-300 truncate">{a.name}</p>
+                                            {a.description && (
+                                              <RichTextDisplay html={a.description} className="text-[11px] text-gray-400 line-clamp-1 mt-0.5" />
+                                            )}
+                                          </div>
                                           <div className="flex items-center gap-2 flex-shrink-0">
                                             <span className="text-xs text-gray-400">{a.progress}%</span>
                                             <StatusBadge status={a.status} />

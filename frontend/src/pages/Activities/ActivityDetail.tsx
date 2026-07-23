@@ -10,6 +10,7 @@ import { useAuth } from '../../store/authStore';
 import { toast } from '../../components/tpfcs/Toast';
 import BackButton from '../../components/tpfcs/BackButton';
 import FilePreview from '../../components/tpfcs/FilePreview';
+import RichTextDisplay from '../../components/tpfcs/RichTextDisplay';
 
 // Status transition map (mirrors backend)
 const TRANSITIONS: Record<ActivityStatus, ActivityStatus[]> = {
@@ -361,7 +362,7 @@ export default function ActivityDetail() {
           {activity.description && (
             <div className="col-span-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
               <p className="text-xs text-gray-400 mb-1">Description</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{activity.description}</p>
+              <RichTextDisplay html={activity.description} />
             </div>
           )}
         </div>

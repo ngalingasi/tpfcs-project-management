@@ -190,6 +190,7 @@ export interface Target {
   objective_id: number;
   target_name?: string;
   name: string;
+  description?: string | null;
   metric_type: 'count' | 'percentage' | 'amount' | 'other';
   unit?: string;
   target_value: number;

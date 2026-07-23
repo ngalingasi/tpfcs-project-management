@@ -4,6 +4,7 @@ import { activitiesApi, targetsApi, objectivesApi, projectsApi, usersApi, sitesA
 import type { Target, Region, UserRecord, ProjectSite } from '../../types';
 import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
 import SearchableSelect from '../../components/tpfcs/SearchableSelect';
+import RichTextEditor from '../../components/tpfcs/RichTextEditor';
 import { toast } from '../../components/tpfcs/Toast';
 import BackButton from '../../components/tpfcs/BackButton';
 
@@ -339,7 +340,7 @@ export default function ActivityForm() {
           )}
 
           <FormInput label="Activity Name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Construct borehole at Mwanakwerekwe" />
-          <FormTextArea label="Description" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe this activity..." />
+          <RichTextEditor label="Description" value={form.description} onChange={html => set('description', html)} placeholder="Describe this activity..." />
         </Section>
 
         <Section title="Location">

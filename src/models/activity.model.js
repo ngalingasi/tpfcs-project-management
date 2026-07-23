@@ -4,6 +4,7 @@ const ApiError = require('../utils/ApiError');
 const { buildPagination } = require('../utils/paginate');
 const { ACTIVITY_STATUSES, ACTIVITY_STATUS_TRANSITIONS } = require('../config/statuses');
 const { validateActivityBudget, syncTargetSpent } = require('./budget.model');
+const { sanitizeRichText } = require('../utils/sanitizeRichText');
 
 /**
  * Create an activity — budgeted_amount is optional; when provided (> 0) it is
@@ -47,7 +48,7 @@ const createActivity = async (body, creatorId) => {
         street, road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id,
         start_date, end_date, progress, budgeted_amount, status, created_by)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
-      [target_id, region_id, name, description, main_activity_id, council, ward, street,
+      [target_id, region_id, name, sanitizeRichText(description), main_activity_id, council, ward, street,
        road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id,
        start_date, end_date, budget, status, creatorId]
     );
@@ -174,7 +175,10 @@ const updateActivity = async (id, body, updatorId) => {
 
   const result = await transaction(async (conn) => {
     const setClauses = fields.map((f) => `${f} = ?`).join(', ');
-    const values = fields.map((f) => body[f] === undefined ? null : body[f]);
+    const values = fields.map((f) => {
+      if (body[f] === undefined) return null;
+      return f === 'description' ? sanitizeRichText(body[f]) : body[f];
+    });
     await conn.query(`UPDATE activities SET ${setClauses} WHERE activity_id = ?`, [...values, id]);
 
     // Track status change in history

@@ -1,13 +1,14 @@
 const httpStatus = require('http-status');
 const { query } = require('../config/database');
 const ApiError = require('../utils/ApiError');
+const { sanitizeRichText } = require('../utils/sanitizeRichText');
 
 const createTarget = async (body, creatorId) => {
   const { TARGET_STATUSES } = require('../config/statuses');
-  const { objective_id, name, metric_type = 'count', unit = null, target_value, deadline = null, status = TARGET_STATUSES.ON_TRACK } = body;
+  const { objective_id, name, description = null, metric_type = 'count', unit = null, target_value, deadline = null, status = TARGET_STATUSES.ON_TRACK } = body;
   const result = await query(
-    'INSERT INTO targets (objective_id, name, metric_type, unit, target_value, current_value, deadline, status, created_by) VALUES (?,?,?,?,?,0,?,?,?)',
-    [objective_id, name, metric_type, unit, target_value, deadline, status, creatorId]
+    'INSERT INTO targets (objective_id, name, description, metric_type, unit, target_value, current_value, deadline, status, created_by) VALUES (?,?,?,?,?,?,0,?,?,?)',
+    [objective_id, name, sanitizeRichText(description), metric_type, unit, target_value, deadline, status, creatorId]
   );
   return getTargetById(result.insertId);
 };
@@ -23,12 +24,13 @@ const getTargetById = async (id) => {
 };
 
 const updateTarget = async (id, body) => {
-  const allowed = ['name', 'metric_type', 'unit', 'target_value', 'current_value', 'deadline', 'status'];
+  const allowed = ['name', 'description', 'metric_type', 'unit', 'target_value', 'current_value', 'deadline', 'status'];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
   if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields');
 
   const set = fields.map((f) => `${f} = ?`).join(', ');
-  await query(`UPDATE targets SET ${set} WHERE target_id = ?`, [...fields.map((f) => body[f]), id]);
+  const values = fields.map((f) => f === 'description' ? sanitizeRichText(body[f]) : body[f]);
+  await query(`UPDATE targets SET ${set} WHERE target_id = ?`, [...values, id]);
   return getTargetById(id);
 };
 

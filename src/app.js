@@ -1,6 +1,5 @@
 const express    = require('express');
 const helmet     = require('helmet');
-const xss        = require('xss-clean');
 const compression = require('compression');
 const cors       = require('cors');
 const passport   = require('passport');
@@ -44,7 +43,15 @@ app.use(helmet({
 // ── Body parsing ──────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(xss());
+// NOTE: previously used `xss-clean` here, applied globally to every request
+// body. That HTML-escapes ALL string fields indiscriminately — which
+// corrupts intentional rich-text HTML (from RichTextEditor) into literal
+// "&lt;b&gt;" text that gets stored as-is and never un-corrupts itself. It's
+// also a deprecated/unmaintained package. Removed in favor of a targeted
+// allowlist sanitizer (see utils/sanitizeRichText.js) applied only to the
+// specific rich-text fields (descriptions, project_background) at the model
+// layer, so real HTML-injection protection stays in place without breaking
+// legitimate formatting.
 app.use(compression());
 
 // ── CORS ──────────────────────────────────────────────────────────────────────

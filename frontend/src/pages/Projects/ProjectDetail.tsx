@@ -10,6 +10,8 @@ import FilePreview from '../../components/tpfcs/FilePreview';
 import { documentsApi } from '../../api';
 import Modal from '../../components/tpfcs/Modal';
 import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
+import RichTextEditor from '../../components/tpfcs/RichTextEditor';
+import RichTextDisplay from '../../components/tpfcs/RichTextDisplay';
 
 type Tab = 'sites' | 'details' | 'objectives' | 'targets' | 'activities' | 'documents';
 
@@ -37,7 +39,7 @@ function ObjectiveForm({ projectId, onSaved, onClose }: { projectId: number; onS
     <form onSubmit={save} className="space-y-4">
       {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg">{error}</p>}
       <FormInput label="Title" required value={form.title} onChange={e => set('title', e.target.value)} placeholder="Objective title" />
-      <FormTextArea label="Description" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe this objective..." />
+      <RichTextEditor label="Description" value={form.description} onChange={html => set('description', html)} placeholder="Describe this objective..." />
       <div className="grid grid-cols-2 gap-3">
         <FormSelect label="Priority" value={form.priority} onChange={e => set('priority', e.target.value)}>
           <option value="low">Low</option>
@@ -61,7 +63,7 @@ function ObjectiveForm({ projectId, onSaved, onClose }: { projectId: number; onS
 
 // ── Target Form ───────────────────────────────────────────────────────────────
 function TargetForm({ objectives, onSaved, onClose }: { objectives: Objective[]; onSaved: () => void; onClose: () => void }) {
-  const [form, setForm] = useState({ objective_id: objectives[0]?.objective_id?.toString() ?? '', name: '', metric_type: 'count', unit: '', target_value: '', deadline: '', status: 'on_track' });
+  const [form, setForm] = useState({ objective_id: objectives[0]?.objective_id?.toString() ?? '', name: '', description: '', metric_type: 'count', unit: '', target_value: '', deadline: '', status: 'on_track' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -87,6 +89,7 @@ function TargetForm({ objectives, onSaved, onClose }: { objectives: Objective[];
         {objectives.map(o => <option key={o.objective_id} value={o.objective_id}>{o.title}</option>)}
       </FormSelect>
       <FormInput label="Target Name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Number of boreholes constructed" />
+      <RichTextEditor label="Description" value={form.description} onChange={html => set('description', html)} placeholder="Additional detail about this target..." />
       <div className="grid grid-cols-2 gap-3">
         <FormSelect label="Metric Type" value={form.metric_type} onChange={e => set('metric_type', e.target.value)}>
           <option value="count">Count</option>
@@ -505,16 +508,16 @@ export default function ProjectDetail() {
 
           {/* Narrative fields with bullet list support */}
           {[
-            { label: 'Project Background',    value: project.project_background,      bullets: false },
-            { label: 'Project Objectives',    value: project.project_objectives,      bullets: true  },
-            { label: 'Main Activities',       value: project.project_main_activities, bullets: true  },
-            { label: 'Beneficiaries',         value: project.project_beneficiaries,   bullets: true  },
-            { label: 'Project Use Capacity',  value: project.project_use_capacity,    bullets: false },
-            { label: 'Project Scope',         value: project.project_scope,           bullets: true  },
+            { label: 'Project Background',    value: project.project_background,      bullets: false, html: true  },
+            { label: 'Project Objectives',    value: project.project_objectives,      bullets: true,  html: false },
+            { label: 'Main Activities',       value: project.project_main_activities, bullets: true,  html: false },
+            { label: 'Beneficiaries',         value: project.project_beneficiaries,   bullets: true,  html: false },
+            { label: 'Project Use Capacity',  value: project.project_use_capacity,    bullets: false, html: false },
+            { label: 'Project Scope',         value: project.project_scope,           bullets: true,  html: false },
           ].filter(i => i.value).map(i => (
             <div key={i.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
               <p className="text-xs font-bold text-gray-400 mb-2">{i.label}</p>
-              {i.bullets ? <BulletList value={i.value} /> : <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{i.value}</p>}
+              {i.bullets ? <BulletList value={i.value} /> : i.html ? <RichTextDisplay html={i.value!} /> : <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{i.value}</p>}
             </div>
           ))}
 
@@ -690,7 +693,7 @@ export default function ProjectDetail() {
                       'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                     }`}>{o.priority}</span>
                   </div>
-                  {o.description && <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{o.description}</p>}
+                  {o.description && <RichTextDisplay html={o.description} className="text-xs mt-1.5 line-clamp-2" />}
                 </div>
                 <p className="text-xs text-gray-400 flex-shrink-0">
                   {targets.filter(t => t.objective_id === o.objective_id).length} targets
@@ -723,6 +726,7 @@ export default function ProjectDetail() {
                   <div>
                     <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{t.name}</h3>
                     {obj && <p className="text-xs text-gray-400 mt-0.5">↳ {obj.title}</p>}
+                    {t.description && <RichTextDisplay html={t.description} className="text-xs mt-1.5" />}
                   </div>
                   <StatusBadge status={t.status} />
                 </div>
