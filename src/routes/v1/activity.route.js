@@ -14,6 +14,7 @@ const activitySchema = {
     name:             Joi.string().required(),
     description:      Joi.string().optional().allow('', null),
     main_activity_id: Joi.number().integer().optional().allow(null),
+    sort_order:       Joi.number().integer().optional(),
     council:          Joi.string().optional().allow('', null),
     ward:             Joi.string().optional().allow('', null),
     street:           Joi.string().optional().allow('', null),
@@ -52,6 +53,7 @@ const updateActivitySchema = {
     progress:         Joi.number().min(0).max(100).optional(),
     status:           Joi.string().valid(...ACTIVITY_STATUS_LIST).optional(),
     main_activity_id: Joi.number().integer().optional().allow(null),
+    sort_order:       Joi.number().integer().optional(),
   }).min(1),
 };
 
@@ -104,6 +106,7 @@ router.post('/:activityId/sub-activities', auth('manageActivities'), validate(su
 router.get( '/:activityId/documents', auth('getActivities'),    activityController.getDocuments);
 router.post('/:activityId/documents', auth('getActivities'),    upload.single('file'), activityController.uploadDocument);
 router.delete('/:activityId/documents/:documentId', auth('getActivities'), activityController.deleteDocument);
+router.patch('/:activityId/documents/:documentId', auth('getActivities'), activityController.updateDocumentSortOrder);
 
 // ── Document comments ─────────────────────────────────────────────────────────
 router.get(   '/:activityId/documents/:documentId/comments',            auth('getActivities'), activityController.getDocumentComments);

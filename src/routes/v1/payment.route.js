@@ -15,6 +15,7 @@ const createSchema = {
     payee:           Joi.string().optional().allow('', null),
     description:     Joi.string().optional().allow('', null),
     status:          Joi.string().valid('pending', 'approved').optional(),
+    site_id:         Joi.number().integer().optional().allow('', null),
   }),
 };
 

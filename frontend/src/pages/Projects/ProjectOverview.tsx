@@ -264,7 +264,9 @@ export default function ProjectOverview() {
                               <p className="text-xs text-gray-400">No targets under this objective yet.</p>
                             ) : siteTargets.map(t => {
                               const targetOpen = expandedTargets.has(t.target_id);
-                              const targetActivities = activities.filter(a => a.target_id === t.target_id);
+                              const targetActivities = activities
+                                .filter(a => a.target_id === t.target_id)
+                                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
                               return (
                                 <div key={t.target_id} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                                   <button
@@ -273,7 +275,10 @@ export default function ProjectOverview() {
                                   >
                                     <div className="flex items-center gap-2 min-w-0">
                                       <Chevron open={targetOpen} />
-                                      <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{t.name}</p>
+                                      <div className="min-w-0">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Target</span>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{t.name}</p>
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       <span className="text-xs text-gray-400 hidden sm:inline">{targetActivities.length} activities</span>
@@ -291,10 +296,11 @@ export default function ProjectOverview() {
                                       ) : targetActivities.map(a => (
                                         <Link
                                           key={a.activity_id}
-                                          to={`/activities/${a.activity_id}`}
+                                          to={`/activities/${a.activity_id}?site_id=${site.site_id}`}
                                           className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
                                         >
                                           <div className="min-w-0">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Activity</span>
                                             <p className="text-xs text-gray-700 dark:text-gray-300 truncate">{a.name}</p>
                                             {a.description && (
                                               <RichTextDisplay html={a.description} className="text-[11px] text-gray-400 line-clamp-1 mt-0.5" />

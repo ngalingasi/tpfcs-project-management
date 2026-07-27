@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router';
-import { activitiesApi, budgetApi } from '../../api';
-import type { Activity, ActivityStatusHistory, BudgetRevision, ActivityStatus } from '../../types';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router';
+import { activitiesApi, budgetApi, sitesApi } from '../../api';
+import type { Activity, ActivityStatusHistory, BudgetRevision, ActivityStatus, ProjectSite } from '../../types';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import Modal from '../../components/tpfcs/Modal';
@@ -28,6 +28,18 @@ export default function ActivityDetail() {
   const { user } = useAuth();
   const aid      = Number(id);
 
+  const [searchParams] = useSearchParams();
+  const siteFilterId = searchParams.get('site_id') ? Number(searchParams.get('site_id')) : null;
+  const [objectiveSites, setObjectiveSites] = useState<ProjectSite[]>([]);
+
+  // Per-tab site filters — each defaults to the URL's ?site_id (if arriving
+  // from the Overview's Site drill-down), but the user can change or clear
+  // it independently per tab. All documents/pictures/payments are always
+  // fetched for the activity; these just control what's shown.
+  const [docSiteFilter, setDocSiteFilter] = useState(siteFilterId ? String(siteFilterId) : '');
+  const [picSiteFilter, setPicSiteFilter] = useState(siteFilterId ? String(siteFilterId) : '');
+  const [paySiteFilter, setPaySiteFilter] = useState(siteFilterId ? String(siteFilterId) : '');
+
   const [activity,   setActivity]   = useState<Activity | null>(null);
   const [history,    setHistory]    = useState<ActivityStatusHistory[]>([]);
   const [revisions,  setRevisions]  = useState<BudgetRevision[]>([]);
@@ -40,12 +52,12 @@ export default function ActivityDetail() {
   const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string;documentId?:number;description?:string|null;category?:'document'|'picture';doc?:any}|null>(null);
   const [docComments,   setDocComments]   = useState<any[]>([]);
   const [uploadModal,   setUploadModal]   = useState<'document' | 'picture' | null>(null);
-  const [uploadForm,    setUploadForm]    = useState({ name: '', description: '', file: null as File | null });
+  const [uploadForm,    setUploadForm]    = useState({ name: '', description: '', site_id: '', sort_order: '0', file: null as File | null });
   const [uploading,     setUploading]     = useState(false);
   const [payments,      setPayments]      = useState<any[]>([]);
   const [paySummary,    setPaySummary]    = useState<any>(null);
   const [showPayForm,   setShowPayForm]   = useState(false);
-  const [payForm,       setPayForm]       = useState({ amount: '', payment_date: new Date().toISOString().slice(0,10), payment_method: '', reference_no: '', payee: '', description: '', status: 'pending' });
+  const [payForm,       setPayForm]       = useState({ amount: '', payment_date: new Date().toISOString().slice(0,10), payment_method: '', reference_no: '', payee: '', description: '', status: 'pending', site_id: '' });
   const [payFile,       setPayFile]       = useState<File | null>(null);
   const [savingPay,     setSavingPay]     = useState(false);
   const [loading,    setLoading]    = useState(true);
@@ -72,7 +84,8 @@ export default function ActivityDetail() {
     setLoading(true);
     try {
       const aRes = await activitiesApi.get(aid);
-      setActivity(aRes.data);
+      const a = aRes.data as any;
+      setActivity(a);
       activitiesApi.getHistory(aid).then(r => setHistory(r.data)).catch(() => {});
       budgetApi.listRevisions({ activity_id: aid })
         .then(r => setRevisions(r.data)).catch(() => {});
@@ -80,6 +93,9 @@ export default function ActivityDetail() {
         .then(r => setSubActivities(r.data)).catch(() => {});
       activitiesApi.getComments(aid)
         .then(r => setComments(r.data)).catch(() => {});
+      // Always fetch the full set — the site filter dropdowns in each tab
+      // narrow what's displayed client-side, so switching between "All
+      // sites" and a specific one is instant with no refetch.
       activitiesApi.getPayments(aid)
         .then(r => setPayments(r.data)).catch(() => {});
       activitiesApi.getPaymentSummary(aid)
@@ -88,10 +104,24 @@ export default function ActivityDetail() {
         .then(r => setDocuments(r.data)).catch(() => {});
       activitiesApi.getDocuments(aid, 'picture')
         .then(r => setPictures(r.data)).catch(() => {});
+
+      // Sites linked to this activity's objective (via target -> objective),
+      // used both for the site filter dropdowns and the Site pickers on the
+      // upload/payment forms.
+      if (a.project_id) {
+        sitesApi.listByProject(a.project_id)
+          .then(r => setObjectiveSites(r.data.filter(s => s.objective_id === a.objective_id)))
+          .catch(() => setObjectiveSites([]));
+      }
     } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, [aid]);
+
+  // Filtered views shown in each tab (empty selection = show all)
+  const filteredDocuments = docSiteFilter ? documents.filter(d => String(d.site_id ?? '') === docSiteFilter) : documents;
+  const filteredPictures  = picSiteFilter ? pictures.filter(d => String(d.site_id ?? '') === picSiteFilter)  : pictures;
+  const filteredPayments  = paySiteFilter ? payments.filter(p => String(p.site_id ?? '') === paySiteFilter)  : payments;
 
   const handleStatusUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +156,8 @@ export default function ActivityDetail() {
   };
 
   const openUploadModal = (category: 'document' | 'picture') => {
-    setUploadForm({ name: '', description: '', file: null });
+    const defaultSite = category === 'picture' ? picSiteFilter : docSiteFilter;
+    setUploadForm({ name: '', description: '', site_id: defaultSite, sort_order: '0', file: null });
     setUploadModal(category);
   };
 
@@ -140,11 +171,13 @@ export default function ActivityDetail() {
       fd.append('name', uploadForm.name.trim() || uploadForm.file.name);
       fd.append('description', uploadForm.description.trim());
       fd.append('category', uploadModal === 'picture' ? 'picture' : 'document');
+      fd.append('sort_order', uploadForm.sort_order || '0');
+      if (uploadForm.site_id) fd.append('site_id', uploadForm.site_id);
       const res = await activitiesApi.uploadDocument(aid, fd);
       if (uploadModal === 'picture') {
-        setPictures(prev => [res.data, ...prev]);
+        setPictures(prev => [...prev, res.data].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
       } else {
-        setDocuments(prev => [res.data, ...prev]);
+        setDocuments(prev => [...prev, res.data].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
       }
       toast.success(uploadModal === 'picture' ? 'Picture uploaded' : 'Document uploaded', res.data.name);
       setUploadModal(null);
@@ -218,6 +251,19 @@ export default function ActivityDetail() {
   };
 
   const canDeleteDoc = (doc: any) => user?.role === 'admin' || user?.role === 'manager' || Number(doc.created_by) === user?.user_id;
+
+  const handleUpdateSortOrder = async (doc: any, category: 'document' | 'picture', newOrder: number) => {
+    try {
+      const res = await activitiesApi.updateDocumentSortOrder(aid, doc.document_id, newOrder);
+      const apply = (list: any[]) =>
+        list.map(d => d.document_id === doc.document_id ? { ...d, sort_order: res.data.sort_order } : d)
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      if (category === 'picture') setPictures(apply);
+      else setDocuments(apply);
+    } catch {
+      toast.error('Failed to update sort order');
+    }
+  };
 
   const fmt  = (n?: number | string | null) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
   const dt   = (s?: string | null) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -549,7 +595,24 @@ export default function ActivityDetail() {
       {/* Documents Tab */}
       {tab === 'documents' && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            {objectiveSites.length > 0 ? (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Site:</label>
+                <select
+                  value={docSiteFilter}
+                  onChange={e => setDocSiteFilter(e.target.value)}
+                  className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-brand-400"
+                >
+                  <option value="">All sites ({documents.length})</option>
+                  {objectiveSites.map(s => (
+                    <option key={s.site_id} value={s.site_id}>
+                      {s.site_name} ({documents.filter(d => d.site_id === s.site_id).length})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : <span />}
             <button onClick={() => openUploadModal('document')}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -557,17 +620,37 @@ export default function ActivityDetail() {
             </button>
           </div>
 
-          {documents.length === 0 ? (
-            <p className="text-center py-8 text-sm text-gray-400">No documents uploaded yet</p>
+          {filteredDocuments.length === 0 ? (
+            <p className="text-center py-8 text-sm text-gray-400">
+              {documents.length === 0 ? 'No documents uploaded yet' : 'No documents tagged to this site'}
+            </p>
           ) : (
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
-              {documents.map((doc: any) => (
+              {filteredDocuments.map((doc: any, idx: number) => (
                 <div key={doc.document_id} className="flex items-center gap-4 px-4 py-3 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <div className="flex flex-col flex-shrink-0">
+                    <button
+                      onClick={() => handleUpdateSortOrder(doc, 'document', (doc.sort_order ?? 0) - 1)}
+                      disabled={idx === 0}
+                      title="Move up"
+                      className="text-gray-400 hover:text-brand-500 disabled:opacity-30"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button
+                      onClick={() => handleUpdateSortOrder(doc, 'document', (doc.sort_order ?? 0) + 1)}
+                      disabled={idx === filteredDocuments.length - 1}
+                      title="Move down"
+                      className="text-gray-400 hover:text-brand-500 disabled:opacity-30"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                  </div>
                   <svg className="w-8 h-8 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{doc.name}</p>
                     {doc.description && <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{doc.description}</p>}
-                    <p className="text-xs text-gray-400 mt-0.5">{doc.uploaded_by_name} · v{doc.version_number} · {doc.size ? `${(doc.size/1024).toFixed(1)} KB` : ''}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{doc.uploaded_by_name} · v{doc.version_number} · {doc.size ? `${(doc.size/1024).toFixed(1)} KB` : ''}{doc.site_name && ` · Site: ${doc.site_name}`}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
@@ -606,7 +689,24 @@ export default function ActivityDetail() {
       {/* ── PICTURES TAB ── */}
       {tab === 'pictures' && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            {objectiveSites.length > 0 ? (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Site:</label>
+                <select
+                  value={picSiteFilter}
+                  onChange={e => setPicSiteFilter(e.target.value)}
+                  className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-brand-400"
+                >
+                  <option value="">All sites ({pictures.length})</option>
+                  {objectiveSites.map(s => (
+                    <option key={s.site_id} value={s.site_id}>
+                      {s.site_name} ({pictures.filter(d => d.site_id === s.site_id).length})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : <span />}
             <button onClick={() => openUploadModal('picture')}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -614,11 +714,13 @@ export default function ActivityDetail() {
             </button>
           </div>
 
-          {pictures.length === 0 ? (
-            <p className="text-center py-8 text-sm text-gray-400">No pictures uploaded yet</p>
+          {filteredPictures.length === 0 ? (
+            <p className="text-center py-8 text-sm text-gray-400">
+              {pictures.length === 0 ? 'No pictures uploaded yet' : 'No pictures tagged to this site'}
+            </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {pictures.map((pic: any) => (
+              {filteredPictures.map((pic: any, idx: number) => (
                 <div
                   key={pic.document_id}
                   className="group relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 aspect-square"
@@ -631,6 +733,7 @@ export default function ActivityDetail() {
                     />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2 pt-6">
                       <p className="text-xs font-medium text-white truncate">{pic.name}</p>
+                      {pic.site_name && <p className="text-[10px] text-white/70 truncate">Site: {pic.site_name}</p>}
                     </div>
                   </button>
                   {pic.comment_count > 0 && (
@@ -649,6 +752,24 @@ export default function ActivityDetail() {
                       </svg>
                     </button>
                   )}
+                  <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleUpdateSortOrder(pic, 'picture', (pic.sort_order ?? 0) - 1); }}
+                      disabled={idx === 0}
+                      title="Move earlier"
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-brand-600 disabled:opacity-30"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleUpdateSortOrder(pic, 'picture', (pic.sort_order ?? 0) + 1); }}
+                      disabled={idx === filteredPictures.length - 1}
+                      title="Move later"
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-brand-600 disabled:opacity-30"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -687,10 +808,29 @@ export default function ActivityDetail() {
             </div>
           )}
 
+          {/* Site filter */}
+          {objectiveSites.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Site:</label>
+              <select
+                value={paySiteFilter}
+                onChange={e => setPaySiteFilter(e.target.value)}
+                className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:border-brand-400"
+              >
+                <option value="">All sites ({payments.length})</option>
+                {objectiveSites.map(s => (
+                  <option key={s.site_id} value={s.site_id}>
+                    {s.site_name} ({payments.filter(p => p.site_id === s.site_id).length})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Record payment button (PM/admin) */}
           {(user?.role === 'admin' || user?.role === 'manager') && !showPayForm && (
             <div className="flex justify-end">
-              <button onClick={() => setShowPayForm(true)}
+              <button onClick={() => { setPayForm(p => ({ ...p, site_id: paySiteFilter || p.site_id })); setShowPayForm(true); }}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-500 text-white rounded-lg hover:bg-brand-600">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                 Record Payment
@@ -736,6 +876,16 @@ export default function ActivityDetail() {
                     <option value="approved">Approved</option>
                   </select>
                 </div>
+                {objectiveSites.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Site (optional)</label>
+                    <select value={payForm.site_id} onChange={e => setPayForm(p => ({ ...p, site_id: e.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-brand-400">
+                      <option value="">Not tied to a specific site</option>
+                      {objectiveSites.map(s => <option key={s.site_id} value={s.site_id}>{s.site_name}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -779,6 +929,7 @@ export default function ActivityDetail() {
                       if (payForm.reference_no)   fd.append('reference_no',   payForm.reference_no);
                       if (payForm.payee)           fd.append('payee',          payForm.payee);
                       if (payForm.description)     fd.append('description',    payForm.description);
+                      if (payForm.site_id)          fd.append('site_id',        payForm.site_id);
                       if (payFile) fd.append('evidence', payFile);
                       const res = await activitiesApi.createPayment(aid, fd);
                       setPayments(prev => [res.data, ...prev]);
@@ -786,7 +937,7 @@ export default function ActivityDetail() {
                       const s = await activitiesApi.getPaymentSummary(aid);
                       setPaySummary(s.data);
                       setShowPayForm(false);
-                      setPayForm({ amount: '', payment_date: new Date().toISOString().slice(0,10), payment_method: '', reference_no: '', payee: '', description: '', status: 'pending' });
+                      setPayForm({ amount: '', payment_date: new Date().toISOString().slice(0,10), payment_method: '', reference_no: '', payee: '', description: '', status: 'pending', site_id: paySiteFilter });
                       setPayFile(null);
                       toast.success('Payment recorded');
                     } catch (err: any) {
@@ -801,11 +952,11 @@ export default function ActivityDetail() {
           )}
 
           {/* Payments list */}
-          {payments.length === 0 ? (
+          {filteredPayments.length === 0 ? (
             <p className="text-center py-10 text-sm text-gray-400">No payments recorded yet</p>
           ) : (
             <div className="space-y-2">
-              {payments.map((p: any) => (
+              {filteredPayments.map((p: any) => (
                 <div key={p.payment_id}
                   className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -825,6 +976,7 @@ export default function ActivityDetail() {
                         {p.payee && ` · ${p.payee}`}
                         {p.payment_method && ` · ${p.payment_method}`}
                         {p.reference_no && ` · Ref: ${p.reference_no}`}
+                        {p.site_name && ` · Site: ${p.site_name}`}
                       </p>
                       {p.description && <p className="text-xs text-gray-400 mt-0.5 truncate">{p.description}</p>}
                       <p className="text-xs text-gray-400 mt-0.5">By {p.created_by_name}</p>
@@ -933,6 +1085,30 @@ export default function ActivityDetail() {
               placeholder={uploadForm.file?.name || 'Leave blank to use file name'}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400"
             />
+          </div>
+          {objectiveSites.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Site (optional)</label>
+              <select
+                value={uploadForm.site_id}
+                onChange={e => setUploadForm(f => ({ ...f, site_id: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400"
+              >
+                <option value="">Not tied to a specific site</option>
+                {objectiveSites.map(s => <option key={s.site_id} value={s.site_id}>{s.site_name}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Sort Order</label>
+            <input
+              type="number"
+              value={uploadForm.sort_order}
+              onChange={e => setUploadForm(f => ({ ...f, sort_order: e.target.value }))}
+              placeholder="0"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400"
+            />
+            <p className="text-xs text-gray-400 mt-1">Lower numbers show first.</p>
           </div>
           <FormTextArea
             label="Description"

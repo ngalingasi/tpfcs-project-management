@@ -121,11 +121,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem(STORAGE_REFRESH);
     setUser(null);
 
-    if (IS_PROD) {
-      // Production — return user to ERP portal dashboard
-      window.location.href = ERP_DASHBOARD;
-    }
-    // Development — React Router redirects to /signin via ProtectedRoute
+    // ERP SSO redirect disabled for now — ProtectedRoute will send the user
+    // to the local /signin page instead. Re-enable by uncommenting below
+    // once the ERP round-trip is ready to go live.
+    // if (IS_PROD) {
+    //   // Production — return user to ERP portal dashboard
+    //   window.location.href = ERP_DASHBOARD;
+    // }
   };
 
   const updateUser = (partial: Partial<User>) => {

@@ -32,6 +32,7 @@ export default function ActivityForm() {
   const [form, setForm] = useState({
     target_id:        searchParams.get('target_id') ?? '',
     main_activity_id: fromMainId ?? '',
+    sort_order:       '0',
     region_id:        '',
     name:             '',
     description:      '',
@@ -104,6 +105,7 @@ export default function ActivityForm() {
           setForm({
             target_id:        a.target_id?.toString()        ?? '',
             main_activity_id: a.main_activity_id?.toString() ?? '',
+            sort_order:       a.sort_order?.toString()        ?? '0',
             region_id:        a.region_id?.toString()        ?? '',
             name:             a.name             ?? '',
             description:      a.description      ?? '',
@@ -220,6 +222,7 @@ export default function ActivityForm() {
         end_date:         form.end_date         || null,
         status:           form.status,
         main_activity_id: form.main_activity_id ? Number(form.main_activity_id) : null,
+        sort_order:       form.sort_order ? Number(form.sort_order) : 0,
       };
       if (!isEdit) {
         payload.target_id       = Number(form.target_id);
@@ -413,6 +416,16 @@ export default function ActivityForm() {
               {isEdit && <option value="cancelled">Cancelled</option>}
               {isEdit && <option value="overdue">Overdue</option>}
             </FormSelect>
+            <div>
+              <FormInput
+                label="Sort Order"
+                type="number"
+                value={form.sort_order}
+                onChange={e => set('sort_order', e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-400 mt-1">Lower numbers show first. Use this to control the order activities appear in lists and the Project Overview.</p>
+            </div>
           </div>
         </Section>
 

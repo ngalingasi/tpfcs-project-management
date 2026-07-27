@@ -35,6 +35,7 @@ const resolveActivityPermission = async (userId, activityId, userRole) => {
   // Load activity + its project manager via target → objective → project chain
   const rows = await query(
     `SELECT a.*,
+            t.objective_id AS objective_id,
             p.project_manager_id,
             p.project_id
      FROM activities a

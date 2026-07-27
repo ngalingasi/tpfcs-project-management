@@ -17,6 +17,7 @@ const createActivity = async (body, creatorId) => {
     name,
     description      = null,
     main_activity_id = null,
+    sort_order       = 0,
     council          = null,
     ward             = null,
     street           = null,
@@ -44,11 +45,11 @@ const createActivity = async (body, creatorId) => {
     }
 
     const [result] = await conn.query(
-      `INSERT INTO activities (target_id, region_id, name, description, main_activity_id, council, ward,
+      `INSERT INTO activities (target_id, region_id, name, description, main_activity_id, sort_order, council, ward,
         street, road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id,
         start_date, end_date, progress, budgeted_amount, status, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
-      [target_id, region_id, name, sanitizeRichText(description), main_activity_id, council, ward, street,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
+      [target_id, region_id, name, sanitizeRichText(description), main_activity_id, sort_order, council, ward, street,
        road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id,
        start_date, end_date, budget, status, creatorId]
     );
@@ -98,7 +99,7 @@ const getActivities = async ({ page, limit, target_id, region_id, status, assign
      LEFT JOIN users su      ON su.user_id      = a.supervisor_id
      LEFT JOIN targets t     ON t.target_id     = a.target_id
      LEFT JOIN objectives ob ON ob.objective_id = t.objective_id
-     WHERE ${where} ORDER BY a.created_at DESC LIMIT ? OFFSET ?`,
+     WHERE ${where} ORDER BY a.sort_order ASC, a.created_at DESC LIMIT ? OFFSET ?`,
     [...params, l, offset]
   );
 
@@ -119,12 +120,15 @@ const getActivityById = async (id, conn = null) => {
             r.region_name,
             au.full_name AS assigned_user_name,
             su.full_name AS supervisor_name,
-            t.name       AS target_name
+            t.name       AS target_name,
+            t.objective_id AS objective_id,
+            ob.project_id  AS project_id
      FROM activities a
      LEFT JOIN regions r  ON r.region_id  = a.region_id
      LEFT JOIN users au   ON au.user_id   = a.assigned_user_id
      LEFT JOIN users su   ON su.user_id   = a.supervisor_id
      LEFT JOIN targets t  ON t.target_id  = a.target_id
+     LEFT JOIN objectives ob ON ob.objective_id = t.objective_id
      WHERE a.activity_id = ?`,
     [id]
   );
@@ -168,7 +172,7 @@ const updateActivity = async (id, body, updatorId) => {
   const allowed = [
     'name', 'description', 'region_id', 'council', 'ward', 'street', 'road_name',
     'latitude', 'longitude', 'global_id', 'assigned_user_id', 'supervisor_id',
-    'start_date', 'end_date', 'progress', 'status', 'main_activity_id',
+    'start_date', 'end_date', 'progress', 'status', 'main_activity_id', 'sort_order',
   ];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
   if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');
@@ -244,7 +248,7 @@ const getSubActivities = async (parentId) => {
      LEFT JOIN regions r  ON r.region_id  = a.region_id
      LEFT JOIN users au   ON au.user_id   = a.assigned_user_id
      LEFT JOIN targets t  ON t.target_id  = a.target_id
-     WHERE a.main_activity_id = ? ORDER BY a.created_at`,
+     WHERE a.main_activity_id = ? ORDER BY a.sort_order ASC, a.created_at`,
     [parentId]
   );
 };

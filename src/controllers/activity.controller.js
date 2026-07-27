@@ -142,9 +142,11 @@ const uploadDocument = catchAsync(async (req, res) => {
   const doc = await documentModel.createDocument(
     {
       activity_id: Number(req.params.activityId),
+      site_id: req.body.site_id ? Number(req.body.site_id) : null,
       name: req.body.name || req.file.originalname,
       description: req.body.description || null,
       category,
+      sort_order: req.body.sort_order ? Number(req.body.sort_order) : 0,
     },
     req.file,
     req.user.user_id
@@ -156,8 +158,20 @@ const getDocuments = catchAsync(async (req, res) => {
   const perms = await getActivityPerms(req, req.params.activityId);
   if (!perms.canView) throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
   const category = req.query.category === 'picture' || req.query.category === 'document' ? req.query.category : null;
-  const docs = await documentModel.getDocumentsByActivity(Number(req.params.activityId), category);
+  const siteId = req.query.site_id ? Number(req.query.site_id) : null;
+  const docs = await documentModel.getDocumentsByActivity(Number(req.params.activityId), category, siteId);
   res.send(docs);
+});
+
+const updateDocumentSortOrder = catchAsync(async (req, res) => {
+  const perms = await getActivityPerms(req, req.params.activityId);
+  const doc = await documentModel.getDocumentById(req.params.documentId);
+  const isOwner = Number(doc.created_by) === req.user.user_id;
+  if (!isOwner && req.user.role !== 'admin' && !perms.canUploadDocument) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to edit this document');
+  }
+  const updated = await documentModel.updateDocumentSortOrder(req.params.documentId, Number(req.body.sort_order) || 0);
+  res.send(updated);
 });
 
 const deleteDocument = catchAsync(async (req, res) => {
@@ -236,7 +250,7 @@ const deleteComment = catchAsync(async (req, res) => {
 module.exports = {
   getActivities, getActivity, createActivity, updateActivity,
   createSubActivity, deleteActivity, getStatusHistory, getSubActivities,
-  uploadDocument, getDocuments, deleteDocument,
+  uploadDocument, getDocuments, deleteDocument, updateDocumentSortOrder,
   getDocumentComments, addDocumentComment, deleteDocumentComment,
   getComments, addComment, deleteComment,
 };

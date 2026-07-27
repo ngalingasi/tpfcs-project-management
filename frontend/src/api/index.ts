@@ -77,12 +77,14 @@ export const activitiesApi = {
     client.get(`/activities/${id}/sub-activities`),
   createSubActivity: (id: number, data: any) =>
     client.post(`/activities/${id}/sub-activities`, data),
-  getDocuments: (id: number, category?: 'document' | 'picture') =>
-    client.get(`/activities/${id}/documents`, { params: category ? { category } : undefined }),
+  getDocuments: (id: number, category?: 'document' | 'picture', siteId?: number) =>
+    client.get(`/activities/${id}/documents`, { params: { ...(category ? { category } : {}), ...(siteId ? { site_id: siteId } : {}) } }),
   uploadDocument: (id: number, formData: FormData) =>
     client.post(`/activities/${id}/documents`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   deleteDocument: (activityId: number, documentId: number) =>
     client.delete(`/activities/${activityId}/documents/${documentId}`),
+  updateDocumentSortOrder: (activityId: number, documentId: number, sortOrder: number) =>
+    client.patch(`/activities/${activityId}/documents/${documentId}`, { sort_order: sortOrder }),
   getDocumentComments: (activityId: number, documentId: number) =>
     client.get(`/activities/${activityId}/documents/${documentId}/comments`),
   addDocumentComment: (activityId: number, documentId: number, comment: string) =>
@@ -95,8 +97,8 @@ export const activitiesApi = {
     client.post(`/activities/${id}/comments`, { comment }),
   deleteComment: (activityId: number, commentId: number) =>
     client.delete(`/activities/${activityId}/comments/${commentId}`),
-  getPayments: (id: number) =>
-    client.get(`/activities/${id}/payments`),
+  getPayments: (id: number, siteId?: number) =>
+    client.get(`/activities/${id}/payments`, { params: siteId ? { site_id: siteId } : undefined }),
   getPaymentSummary: (id: number) =>
     client.get(`/activities/${id}/payments/summary`),
   createPayment: (id: number, data: FormData) =>

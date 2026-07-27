@@ -27,12 +27,14 @@ export default function ProtectedRoute({ allowedRoles }: Props) {
   }
 
   if (!isAuthenticated) {
-    if (IS_PROD) {
-      // Production — no local login page, send to ERP portal
-      window.location.href = ERP_PORTAL;
-      return null;
-    }
-    // Development — show local login page, preserve intended destination
+    // ERP SSO redirect disabled for now — always show the local /signin page,
+    // even in production. Re-enable by uncommenting the block below once the
+    // ERP round-trip is ready to go live.
+    // if (IS_PROD) {
+    //   // Production — no local login page, send to ERP portal
+    //   window.location.href = ERP_PORTAL;
+    //   return null;
+    // }
     return <Navigate to="/signin" state={{ from: location }} replace />;
   }
 

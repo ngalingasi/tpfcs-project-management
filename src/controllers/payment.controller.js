@@ -14,7 +14,8 @@ const requirePMOrAdmin = (perms) => {
 const getPayments = catchAsync(async (req, res) => {
   const perms = await resolveActivityPermission(req.user.user_id, req.params.activityId, req.user.role);
   if (!perms.canView) throw new ApiError(httpStatus.FORBIDDEN, 'Access denied');
-  const payments = await paymentModel.getPayments(Number(req.params.activityId));
+  const siteId = req.query.site_id ? Number(req.query.site_id) : null;
+  const payments = await paymentModel.getPayments(Number(req.params.activityId), siteId);
   res.send(payments);
 });
 

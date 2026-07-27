@@ -34,7 +34,7 @@ const envVarsSchema = Joi.object()
     OTP_EXPIRY_MINUTES:   Joi.number().default(10),
     // File Upload
     UPLOAD_DIR: Joi.string().default('uploads'),
-    MAX_FILE_SIZE: Joi.number().default(10485760), // 10MB
+    MAX_FILE_SIZE: Joi.number().default(52428800), // 50MB
   })
   .unknown();
 

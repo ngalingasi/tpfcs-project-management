@@ -41,17 +41,22 @@ const syncTotalPaid = async (activityId, conn = null) => {
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
-const getPayments = async (activityId) => {
+const getPayments = async (activityId, siteId = null) => {
+  const params = [activityId];
+  let extraClause = '';
+  if (siteId) { extraClause = ' AND p.site_id = ?'; params.push(siteId); }
   return query(
     `SELECT p.*,
             u.full_name  AS created_by_name,
-            a.full_name  AS approved_by_name
+            a.full_name  AS approved_by_name,
+            ps.site_name AS site_name
      FROM activity_payments p
      JOIN users u ON u.user_id = p.created_by
      LEFT JOIN users a ON a.user_id = p.approved_by
-     WHERE p.activity_id = ?
+     LEFT JOIN project_sites ps ON ps.site_id = p.site_id
+     WHERE p.activity_id = ?${extraClause}
      ORDER BY p.payment_date DESC, p.created_at DESC`,
-    [activityId]
+    params
   );
 };
 
@@ -91,11 +96,11 @@ const createPayment = async (activityId, body, file, userId) => {
 
   const result = await query(
     `INSERT INTO activity_payments
-       (activity_id, amount, payment_date, payment_method, reference_no,
+       (activity_id, site_id, amount, payment_date, payment_method, reference_no,
         payee, description, status, evidence_path, evidence_name, created_by)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
-      activityId, amount, body.payment_date,
+      activityId, body.site_id ? Number(body.site_id) : null, amount, body.payment_date,
       body.payment_method || null, body.reference_no || null,
       body.payee || null, body.description || null,
       body.status || 'pending',

@@ -208,9 +208,12 @@ export type ActivityStatus = 'pending' | 'in_progress' | 'on_hold' | 'completed'
 export interface Activity {
   activity_id: number;
   main_activity_id?: number | null;
+  sort_order?: number;
   global_id?: string | null;
   target_id: number;
   target_name?: string;
+  objective_id?: number;
+  project_id?: number;
   region_id?: number;
   region_name?: string;
   name: string;

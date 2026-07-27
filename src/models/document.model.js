@@ -7,10 +7,10 @@ const ApiError = require('../utils/ApiError');
 /**
  * Create a document record and save the first version
  */
-const createDocument = async ({ project_id, activity_id, name, description = null, category = 'document' }, file, creatorId) => {
+const createDocument = async ({ project_id, activity_id, site_id = null, name, description = null, category = 'document', sort_order = 0 }, file, creatorId) => {
   const docResult = await query(
-    'INSERT INTO documents (project_id, activity_id, name, description, category, created_by) VALUES (?,?,?,?,?,?)',
-    [project_id || null, activity_id || null, name, description, category, creatorId]
+    'INSERT INTO documents (project_id, activity_id, site_id, name, description, category, sort_order, created_by) VALUES (?,?,?,?,?,?,?,?)',
+    [project_id || null, activity_id || null, site_id || null, name, description, category, sort_order || 0, creatorId]
   );
   const docId = docResult.insertId;
 
@@ -47,7 +47,7 @@ const getDocumentsByProject = async (projectId) => {
      FROM documents d
      JOIN document_versions dv ON dv.document_id = d.document_id
        AND dv.version_number = (SELECT MAX(version_number) FROM document_versions WHERE document_id = d.document_id)
-     WHERE d.project_id = ? ORDER BY d.created_at DESC`,
+     WHERE d.project_id = ? ORDER BY d.sort_order ASC, d.created_at DESC`,
     [projectId]
   );
 };
@@ -122,13 +122,15 @@ const deleteDocument = async (id) => {
 
 module.exports = { createDocument, addDocumentVersion, getDocumentsByProject, getDocumentById, deleteDocument };
 
-const getDocumentsByActivity = async (activityId, category = null) => {
+const getDocumentsByActivity = async (activityId, category = null, siteId = null) => {
   const params = [activityId];
-  let categoryClause = '';
-  if (category) { categoryClause = ' AND d.category = ?'; params.push(category); }
+  let extraClause = '';
+  if (category) { extraClause += ' AND d.category = ?'; params.push(category); }
+  if (siteId)   { extraClause += ' AND d.site_id = ?';  params.push(siteId); }
   return query(
     `SELECT d.*, dv.file_path, dv.mime_type, dv.size, dv.version_number,
             u.full_name AS uploaded_by_name,
+            ps.site_name AS site_name,
             (SELECT COUNT(*) FROM document_comments dc WHERE dc.document_id = d.document_id) AS comment_count
      FROM documents d
      JOIN document_versions dv ON dv.document_id = d.document_id
@@ -136,12 +138,23 @@ const getDocumentsByActivity = async (activityId, category = null) => {
          SELECT MAX(v2.version_number) FROM document_versions v2 WHERE v2.document_id = d.document_id
        )
      LEFT JOIN users u ON u.user_id = dv.uploaded_by
-     WHERE d.activity_id = ?${categoryClause}
-     ORDER BY d.created_at DESC`,
+     LEFT JOIN project_sites ps ON ps.site_id = d.site_id
+     WHERE d.activity_id = ?${extraClause}
+     ORDER BY d.sort_order ASC, d.created_at DESC`,
     params
   );
 };
 
+/**
+ * Update a document's own metadata (currently just sort_order — name/description
+ * edits aren't exposed yet, this is intentionally narrow).
+ */
+const updateDocumentSortOrder = async (id, sortOrder) => {
+  await query('UPDATE documents SET sort_order = ? WHERE document_id = ?', [sortOrder, id]);
+  return getDocumentById(id);
+};
+
 module.exports = Object.assign(module.exports || {}, {
   getDocumentsByActivity, getDocumentComments, addDocumentComment, deleteDocumentComment,
+  updateDocumentSortOrder,
 });
