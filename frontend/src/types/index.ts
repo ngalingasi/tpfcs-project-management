@@ -175,6 +175,7 @@ export interface ProjectImplementer {
 export interface Objective {
   objective_id: number;
   project_id: number;
+  wbs_code?: string | null;
   title: string;
   description?: string;
   priority: 'low' | 'medium' | 'high';
@@ -207,6 +208,8 @@ export type ActivityStatus = 'pending' | 'in_progress' | 'on_hold' | 'completed'
 
 export interface Activity {
   activity_id: number;
+  wbs_code?: string | null;
+  lead_party?: string | null;
   main_activity_id?: number | null;
   sort_order?: number;
   global_id?: string | null;

@@ -5,10 +5,10 @@ const { sanitizeRichText } = require('../utils/sanitizeRichText');
 
 const createObjective = async (body, creatorId) => {
   const { OBJECTIVE_STATUSES } = require('../config/statuses');
-  const { project_id, title, description = null, priority = 'medium', status = OBJECTIVE_STATUSES.PENDING } = body;
+  const { project_id, wbs_code = null, title, description = null, priority = 'medium', status = OBJECTIVE_STATUSES.PENDING } = body;
   const result = await query(
-    'INSERT INTO objectives (project_id, title, description, priority, status, created_by) VALUES (?,?,?,?,?,?)',
-    [project_id, title, sanitizeRichText(description), priority, status, creatorId]
+    'INSERT INTO objectives (project_id, wbs_code, title, description, priority, status, created_by) VALUES (?,?,?,?,?,?,?)',
+    [project_id, wbs_code ? String(wbs_code).trim() : null, title, sanitizeRichText(description), priority, status, creatorId]
   );
   return getObjectiveById(result.insertId);
 };
@@ -34,12 +34,16 @@ const getObjectiveById = async (id) => {
 };
 
 const updateObjective = async (id, body) => {
-  const allowed = ['title', 'description', 'priority', 'status'];
+  const allowed = ['wbs_code', 'title', 'description', 'priority', 'status'];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
   if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields');
 
   const set = fields.map((f) => `${f} = ?`).join(', ');
-  const values = fields.map((f) => f === 'description' ? sanitizeRichText(body[f]) : body[f]);
+  const values = fields.map((f) => {
+    if (f === 'description') return sanitizeRichText(body[f]);
+    if (f === 'wbs_code') return body[f] ? String(body[f]).trim() : null;
+    return body[f];
+  });
   await query(`UPDATE objectives SET ${set} WHERE objective_id = ?`, [...values, id]);
   return getObjectiveById(id);
 };

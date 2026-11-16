@@ -7,7 +7,21 @@ const projectController = require('../../controllers/project.controller');
 const objectiveController = require('../../controllers/objective.controller');
 const documentController = require('../../controllers/document.controller');
 const siteController = require('../../controllers/site.controller');
+const planController = require('../../controllers/plan.controller');
 const upload = require('../../middlewares/upload');
+const multer = require('multer');
+const httpStatus = require('http-status');
+const ApiError = require('../../utils/ApiError');
+
+// Plan files are only parsed, never kept, so they stay in memory.
+const planUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.xlsx$/i.test(file.originalname);
+    cb(ok ? null : new ApiError(httpStatus.BAD_REQUEST, 'Only .xlsx files are accepted for plan import'), ok);
+  },
+});
 
 const siteSchema = {
   body: Joi.object().keys({
@@ -105,6 +119,15 @@ const projectSchema = {
     financing:              Joi.array().items(financingSchema).optional(),
   }),
 };
+
+// Implementation plan (WBS): template, import, view, export.
+// These fixed paths must stay above '/:projectId'.
+router.get('/plan/template', auth('getProjects'), planController.downloadTemplate);
+router.post('/plan/import', auth('manageProjects'), planUpload.single('file'), planController.importPlan);
+router.post('/:projectId/plan/import', auth('manageProjects'), planUpload.single('file'), planController.importPlan);
+router.get('/:projectId/plan', auth('getProjects'), planController.getPlan);
+router.get('/:projectId/plan/export.xlsx', auth('getProjects'), planController.exportExcel);
+router.get('/:projectId/plan/export.pdf', auth('getProjects'), planController.exportPdf);
 
 router.route('/')
   .post(auth('manageProjects'), validate(projectSchema), projectController.createProject)

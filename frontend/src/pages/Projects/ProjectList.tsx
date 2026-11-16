@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import PageBreadCrumb from '../../components/common/PageBreadCrumb';
 import { projectsApi } from '../../api';
 import type { Project, PaginatedResponse } from '../../types';
+import PlanImportModal from '../../components/tpfcs/PlanImportModal';
 
 export default function ProjectList() {
   const [data,    setData]    = useState<PaginatedResponse<Project> | null>(null);
@@ -10,6 +11,8 @@ export default function ProjectList() {
   const [error,   setError]   = useState('');
   const [search,  setSearch]  = useState('');
   const [page,    setPage]    = useState(1);
+  const [showImport, setShowImport] = useState(false);
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -40,6 +43,13 @@ export default function ProjectList() {
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="w-full sm:w-72 rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white focus:outline-none focus:border-brand-400"
         />
+        <button
+          type="button"
+          onClick={() => setShowImport(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-brand-500 border border-brand-500 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
+        >
+          Import plan
+        </button>
         <Link
           to="/projects/new"
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition-colors"
@@ -143,6 +153,11 @@ export default function ProjectList() {
           </div>
         )}
       </div>
+      <PlanImportModal
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
+        onImported={(projectId) => { setShowImport(false); navigate(`/projects/${projectId}/plan`); }}
+      />
     </div>
   );
 }

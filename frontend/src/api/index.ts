@@ -7,6 +7,7 @@ import type {
 
 export { authApi } from './auth';
 export { projectsApi } from './projects';
+export { planApi } from './plan';
 export type { ProjectFilters } from './projects';
 
 // ── Objectives ────────────────────────────────────────────────────────────────

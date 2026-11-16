@@ -7,11 +7,21 @@ const upload     = require('../../middlewares/upload');
 const activityController = require('../../controllers/activity.controller');
 const { ACTIVITY_STATUS_LIST } = require('../../config/statuses');
 
+const planController = require('../../controllers/plan.controller');
+
+const dependencySchema = {
+  body: Joi.object().keys({
+    predecessor_ids: Joi.array().items(Joi.number().integer()).max(50).required(),
+  }),
+};
+
 const activitySchema = {
   body: Joi.object().keys({
     target_id:        Joi.number().integer().required(),
     region_id:        Joi.number().integer().optional().allow(null),
     name:             Joi.string().required(),
+    wbs_code:         Joi.string().pattern(/^\d+(\.\d+){0,2}$/).max(30).optional().allow('', null).messages({'string.pattern.base':'WBS code must look like 2, 2.3 or 2.3.1'}),
+    lead_party:       Joi.string().max(150).optional().allow('', null),
     description:      Joi.string().optional().allow('', null),
     main_activity_id: Joi.number().integer().optional().allow(null),
     sort_order:       Joi.number().integer().optional(),
@@ -37,6 +47,8 @@ const updateActivitySchema = {
   }),
   body: Joi.object().keys({
     name:             Joi.string().optional(),
+    wbs_code:         Joi.string().pattern(/^\d+(\.\d+){0,2}$/).max(30).optional().allow('', null).messages({'string.pattern.base':'WBS code must look like 2, 2.3 or 2.3.1'}),
+    lead_party:       Joi.string().max(150).optional().allow('', null),
     description:      Joi.string().optional().allow('', null),
     region_id:        Joi.number().integer().optional().allow(null),
     council:          Joi.string().optional().allow('', null),
@@ -62,6 +74,8 @@ const subActivitySchema = {
     target_id:        Joi.number().integer().optional(),
     region_id:        Joi.number().integer().optional().allow(null),
     name:             Joi.string().required(),
+    wbs_code:         Joi.string().pattern(/^\d+(\.\d+){0,2}$/).max(30).optional().allow('', null).messages({'string.pattern.base':'WBS code must look like 2, 2.3 or 2.3.1'}),
+    lead_party:       Joi.string().max(150).optional().allow('', null),
     description:      Joi.string().optional().allow('', null),
     council:          Joi.string().optional().allow('', null),
     ward:             Joi.string().optional().allow('', null),
@@ -96,6 +110,8 @@ router.route('/:activityId')
   .delete(auth('manageActivities'), activityController.deleteActivity);
 
 // ── Status history ────────────────────────────────────────────────────────────
+router.get('/:activityId/dependencies', auth('getActivities'), planController.getDependencies);
+router.put('/:activityId/dependencies', auth('manageActivities'), validate(dependencySchema), planController.setDependencies);
 router.get('/:activityId/history', auth('getActivities'), activityController.getStatusHistory);
 
 // ── Sub-activities ────────────────────────────────────────────────────────────

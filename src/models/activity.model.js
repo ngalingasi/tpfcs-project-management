@@ -10,6 +10,8 @@ const { sanitizeRichText } = require('../utils/sanitizeRichText');
  * Create an activity — budgeted_amount is optional; when provided (> 0) it is
  * validated against the target's available budget, otherwise it defaults to 0.
  */
+const emptyToNull = (v) => (v === undefined || v === null || String(v).trim() === '' ? null : String(v).trim());
+
 const createActivity = async (body, creatorId) => {
   const {
     target_id,
@@ -27,6 +29,8 @@ const createActivity = async (body, creatorId) => {
     global_id        = null,
     assigned_user_id = null,
     supervisor_id    = null,
+    wbs_code         = null,
+    lead_party       = null,
     start_date       = null,
     end_date         = null,
     status           = ACTIVITY_STATUSES.PENDING,
@@ -46,11 +50,12 @@ const createActivity = async (body, creatorId) => {
 
     const [result] = await conn.query(
       `INSERT INTO activities (target_id, region_id, name, description, main_activity_id, sort_order, council, ward,
-        street, road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id,
+        street, road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id, wbs_code, lead_party,
         start_date, end_date, progress, budgeted_amount, status, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
       [target_id, region_id, name, sanitizeRichText(description), main_activity_id, sort_order, council, ward, street,
        road_name, latitude, longitude, global_id, assigned_user_id, supervisor_id,
+       emptyToNull(wbs_code), emptyToNull(lead_party),
        start_date, end_date, budget, status, creatorId]
     );
 
@@ -169,10 +174,13 @@ const updateActivity = async (id, body, updatorId) => {
     body.progress = 100;
   }
 
+  ['wbs_code', 'lead_party'].forEach((k) => { if (k in body) body[k] = emptyToNull(body[k]); });
+
   const allowed = [
     'name', 'description', 'region_id', 'council', 'ward', 'street', 'road_name',
     'latitude', 'longitude', 'global_id', 'assigned_user_id', 'supervisor_id',
     'start_date', 'end_date', 'progress', 'status', 'main_activity_id', 'sort_order',
+    'wbs_code', 'lead_party',
   ];
   const fields = Object.keys(body).filter((k) => allowed.includes(k));
   if (!fields.length) throw new ApiError(httpStatus.BAD_REQUEST, 'No valid fields to update');

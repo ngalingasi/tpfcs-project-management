@@ -33,6 +33,8 @@ export default function ActivityForm() {
     target_id:        searchParams.get('target_id') ?? '',
     main_activity_id: fromMainId ?? '',
     sort_order:       '0',
+    wbs_code:         '',
+    lead_party:       '',
     region_id:        '',
     name:             '',
     description:      '',
@@ -106,6 +108,8 @@ export default function ActivityForm() {
             target_id:        a.target_id?.toString()        ?? '',
             main_activity_id: a.main_activity_id?.toString() ?? '',
             sort_order:       a.sort_order?.toString()        ?? '0',
+            wbs_code:         a.wbs_code                      ?? '',
+            lead_party:       a.lead_party                    ?? '',
             region_id:        a.region_id?.toString()        ?? '',
             name:             a.name             ?? '',
             description:      a.description      ?? '',
@@ -223,6 +227,8 @@ export default function ActivityForm() {
         status:           form.status,
         main_activity_id: form.main_activity_id ? Number(form.main_activity_id) : null,
         sort_order:       form.sort_order ? Number(form.sort_order) : 0,
+        wbs_code:         form.wbs_code.trim()   || null,
+        lead_party:       form.lead_party.trim() || null,
       };
       if (!isEdit) {
         payload.target_id       = Number(form.target_id);
@@ -342,6 +348,12 @@ export default function ActivityForm() {
             </div>
           )}
 
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FormInput label="WBS Code" value={form.wbs_code} onChange={e => set('wbs_code', e.target.value)} placeholder="e.g. 2.3 or 2.3.1" pattern="\d+(\.\d+){0,2}" title="Numbers separated by dots, e.g. 2, 2.3 or 2.3.1" />
+            <div className="sm:col-span-2">
+              <FormInput label="Lead / Responsible party" value={form.lead_party} onChange={e => set('lead_party', e.target.value)} placeholder="e.g. Client / ROM" />
+            </div>
+          </div>
           <FormInput label="Activity Name" required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Construct borehole at Mwanakwerekwe" />
           <RichTextEditor label="Description" value={form.description} onChange={html => set('description', html)} placeholder="Describe this activity..." />
         </Section>

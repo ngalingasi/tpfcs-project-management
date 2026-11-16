@@ -78,7 +78,7 @@ function ActivityCard({ a }: { a: Activity }) {
                   Sub-Activity
                 </span>
               )}
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{a.name}</h3>
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{a.wbs_code && <span className="font-mono text-xs text-gray-400 mr-1.5">{a.wbs_code}</span>}{a.name}</h3>
               <StatusBadge status={a.status} />
             </div>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">

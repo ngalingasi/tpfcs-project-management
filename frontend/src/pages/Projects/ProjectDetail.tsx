@@ -17,7 +17,7 @@ type Tab = 'sites' | 'details' | 'objectives' | 'targets' | 'activities' | 'docu
 
 // ── Objective Form ────────────────────────────────────────────────────────────
 function ObjectiveForm({ projectId, onSaved, onClose }: { projectId: number; onSaved: () => void; onClose: () => void }) {
-  const [form, setForm] = useState({ title: '', description: '', priority: 'medium', status: 'pending' });
+  const [form, setForm] = useState({ wbs_code: '', title: '', description: '', priority: 'medium', status: 'pending' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -38,7 +38,12 @@ function ObjectiveForm({ projectId, onSaved, onClose }: { projectId: number; onS
   return (
     <form onSubmit={save} className="space-y-4">
       {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg">{error}</p>}
-      <FormInput label="Title" required value={form.title} onChange={e => set('title', e.target.value)} placeholder="Objective title" />
+      <div className="grid grid-cols-3 gap-3">
+        <FormInput label="WBS Code" value={form.wbs_code} onChange={e => set('wbs_code', e.target.value)} placeholder="e.g. 2" pattern="\d+" title="A whole number, e.g. 2" />
+        <div className="col-span-2">
+          <FormInput label="Title" required value={form.title} onChange={e => set('title', e.target.value)} placeholder="Objective title" />
+        </div>
+      </div>
       <RichTextEditor label="Description" value={form.description} onChange={html => set('description', html)} placeholder="Describe this objective..." />
       <div className="grid grid-cols-2 gap-3">
         <FormSelect label="Priority" value={form.priority} onChange={e => set('priority', e.target.value)}>
@@ -376,10 +381,16 @@ export default function ProjectDetail() {
             {project.project_manager_name && <span>· <span className="font-bold">Project Manager</span>: {project.project_manager_name}</span>}
           </div>
         </div>
-        <Link to={`/projects/${pid}/edit`}
-          className="flex-shrink-0 px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
-          Edit Project
-        </Link>
+        <div className="flex flex-shrink-0 gap-2">
+          <Link to={`/projects/${pid}/plan`}
+            className="px-4 py-2 text-sm border border-brand-500 text-brand-500 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-500/10">
+            Plan / Gantt
+          </Link>
+          <Link to={`/projects/${pid}/edit`}
+            className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
+            Edit Project
+          </Link>
+        </div>
       </div>
 
       {/* Budget bar */}
@@ -787,7 +798,7 @@ export default function ProjectDetail() {
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{a.name}</h3>
+                    <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{a.wbs_code && <span className="font-mono text-xs text-gray-400 mr-1.5">{a.wbs_code}</span>}{a.name}</h3>
                     <StatusBadge status={a.status} />
                   </div>
                   <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap">

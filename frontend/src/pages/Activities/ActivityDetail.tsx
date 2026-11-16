@@ -294,7 +294,7 @@ export default function ActivityDetail() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-gray-800 dark:text-white">{activity.name}</h1>
+            <h1 className="text-xl font-bold text-gray-800 dark:text-white">{activity.wbs_code && <span className="font-mono text-base text-gray-400 mr-2">{activity.wbs_code}</span>}{activity.name}</h1>
             <StatusBadge status={activity.status} size="md" />
           </div>
           {activity.target_name && (
