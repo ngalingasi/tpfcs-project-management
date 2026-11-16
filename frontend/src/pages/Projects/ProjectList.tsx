@@ -43,6 +43,7 @@ export default function ProjectList() {
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="w-full sm:w-72 rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white focus:outline-none focus:border-brand-400"
         />
+        <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => setShowImport(true)}
@@ -59,6 +60,7 @@ export default function ProjectList() {
           </svg>
           New Project
         </Link>
+        </div>
       </div>
 
       {error && <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm dark:bg-red-500/10 dark:text-red-400">{error}</div>}
