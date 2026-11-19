@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router';
+import { useParams, useNavigate, useSearchParams, useLocation, Link } from 'react-router';
 import { activitiesApi, targetsApi, objectivesApi, projectsApi, usersApi, sitesApi } from '../../api';
 import type { Target, Region, UserRecord, ProjectSite } from '../../types';
 import { FormInput, FormSelect, FormTextArea, FormDateInput } from '../../components/tpfcs/FormField';
@@ -27,6 +27,8 @@ export default function ActivityForm() {
   const isEdit         = !!id;
 
   const fromProjectId  = searchParams.get('project_id');
+  const location       = useLocation();
+  const cameFrom       = (location.state as { from?: string } | null)?.from;
   const fromMainId     = searchParams.get('main_activity_id');
 
   const [form, setForm] = useState({
@@ -238,12 +240,12 @@ export default function ActivityForm() {
       if (isEdit) {
         await activitiesApi.update(Number(id), payload);
         toast.success('Activity updated', 'Changes saved successfully');
-        navigate(`/activities/${id}`);
+        navigate(`/activities/${id}`, { replace: true, state: { from: cameFrom } });
       } else {
         const res = await activitiesApi.create(payload);
         toast.success('Activity created', res.data.name);
-        if (fromProjectId) navigate(`/projects/${fromProjectId}`);
-        else navigate(`/activities/${res.data.activity_id}`);
+        if (fromProjectId) navigate(`/projects/${fromProjectId}?tab=activities`, { replace: true });
+        else navigate(`/activities/${res.data.activity_id}`, { replace: true, state: { from: cameFrom } });
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to save activity';
@@ -269,7 +271,7 @@ export default function ActivityForm() {
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           {fromProjectId
             ? <><Link to="/projects" className="hover:text-brand-500">Projects</Link><span>/</span>
-                <Link to={`/projects/${fromProjectId}`} className="hover:text-brand-500">Project</Link></>
+                <Link to={`/projects/${fromProjectId}?tab=activities`} className="hover:text-brand-500">Project</Link></>
             : <Link to="/activities" className="hover:text-brand-500">Activities</Link>}
           <span>/</span>
           <span className="text-gray-700 dark:text-gray-300">{isEdit ? 'Edit Activity' : 'New Activity'}</span>
@@ -442,7 +444,7 @@ export default function ActivityForm() {
         </Section>
 
         <div className="flex items-center justify-between pb-8">
-          <Link to={isEdit ? `/activities/${id}` : fromProjectId ? `/projects/${fromProjectId}` : '/activities'}
+          <Link to={isEdit ? `/activities/${id}` : fromProjectId ? `/projects/${fromProjectId}?tab=activities` : '/activities'}
             className="px-5 py-2.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
             Cancel
           </Link>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { planApi } from '../../api';
 import type { PlanData, PlanRow } from '../../api/plan';
 import { useAuth } from '../../store/authStore';
@@ -27,6 +27,7 @@ export default function ProjectPlan() {
   const { id } = useParams();
   const pid = Number(id);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const canManage = user?.role === 'admin' || user?.role === 'manager';
 
@@ -223,7 +224,7 @@ export default function ProjectPlan() {
                         {isObj ? (
                           <span className="font-bold text-gray-800 dark:text-white truncate" title={r.name}>{r.name}</span>
                         ) : (
-                          <Link to={`/activities/${r.id}`} className="truncate text-gray-700 dark:text-gray-200 hover:text-brand-500" title={r.name}>{r.name}</Link>
+                          <Link to={`/activities/${r.id}`} state={{ from: location.pathname + location.search }} className="truncate text-gray-700 dark:text-gray-200 hover:text-brand-500" title={r.name}>{r.name}</Link>
                         )}
                       </div>
                     </div>

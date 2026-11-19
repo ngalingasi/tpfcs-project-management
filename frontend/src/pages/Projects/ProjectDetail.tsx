@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router';
 import { projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, lookupsApi, sitesApi } from '../../api';
 import type { Project, Objective, Target, Activity, ProjectBudgetSummary, ProjectSite, Region } from '../../types';
 import { useAuth } from '../../store/authStore';
@@ -290,7 +290,12 @@ export default function ProjectDetail() {
   const [regions,      setRegions]      = useState<Region[]>([]);
   const [budget,       setBudget]       = useState<ProjectBudgetSummary | null>(null);
   const [loading,      setLoading]      = useState(true);
-  const [tab,          setTab]          = useState<Tab>('details');
+  // The active tab lives in the URL (?tab=activities) so coming back from an activity restores it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const TAB_KEYS: Tab[] = ['sites', 'details', 'objectives', 'targets', 'activities', 'documents'];
+  const tabParam = searchParams.get('tab') as Tab | null;
+  const tab: Tab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'details';
+  const setTab = (t: Tab) => setSearchParams(t === 'details' ? {} : { tab: t }, { replace: true });
   const [modal,        setModal]        = useState<'objective' | 'target' | 'allocate' | 'site' | null>(null);
   const [documents,     setDocuments]     = useState<any[]>([]);
   const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string}|null>(null);
@@ -807,7 +812,7 @@ export default function ProjectDetail() {
                     {a.council && <span><svg className="w-3 h-3 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg> {a.council}</span>}
                   </div>
                 </div>
-                <Link to={`/activities/${a.activity_id}`}
+                <Link to={`/activities/${a.activity_id}`} state={{ from: `/projects/${pid}?tab=activities` }}
                   className="text-xs text-brand-500 hover:text-brand-600 flex-shrink-0">View →</Link>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-2">

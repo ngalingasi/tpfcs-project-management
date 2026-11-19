@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router';
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router';
 import { activitiesApi, budgetApi, sitesApi } from '../../api';
 import type { Activity, ActivityStatusHistory, BudgetRevision, ActivityStatus, ProjectSite } from '../../types';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
@@ -25,6 +25,10 @@ const TRANSITIONS: Record<ActivityStatus, ActivityStatus[]> = {
 export default function ActivityDetail() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Where the user came from (project tab, plan, parent activity, list…). Back and delete return there.
+  const backTo = (location.state as { from?: string } | null)?.from ?? '/activities';
+  const here = location.pathname + location.search;
   const { user } = useAuth();
   const aid      = Number(id);
 
@@ -152,7 +156,7 @@ export default function ActivityDetail() {
 
   const handleDelete = async () => {
     await activitiesApi.delete(aid);
-    navigate('/activities');
+    navigate(backTo, { replace: true });
   };
 
   const openUploadModal = (category: 'document' | 'picture') => {
@@ -302,14 +306,14 @@ export default function ActivityDetail() {
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
-          <BackButton to="/activities" />
+          <BackButton to={backTo} />
           {!isTerminal && (user?.role === 'admin' || user?.role === 'manager') && (
             <button onClick={() => { setNewStatus(allowedNext[0] ?? 'in_progress'); setProgress(String(activity.progress)); setStatusErr(''); setStatusModal(true); }}
               className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
               Update Status
             </button>
           )}
-          <Link to={`/activities/${aid}/edit`}
+          <Link to={`/activities/${aid}/edit`} state={{ from: backTo }}
             className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
             Edit
           </Link>
@@ -511,7 +515,7 @@ export default function ActivityDetail() {
                   <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{s.name}</h3>
                   <StatusBadge status={s.status} />
                 </div>
-                <Link to={`/activities/${s.activity_id}`} className="text-xs text-brand-500 hover:text-brand-600">View →</Link>
+                <Link to={`/activities/${s.activity_id}`} state={{ from: here }} className="text-xs text-brand-500 hover:text-brand-600">View →</Link>
               </div>
               <div className="grid grid-cols-3 gap-3 text-xs mb-2">
                 <div><p className="text-gray-400">Budget</p><p className="font-medium text-gray-700 dark:text-gray-300">TZS {Number(s.effective_budget).toLocaleString()}</p></div>

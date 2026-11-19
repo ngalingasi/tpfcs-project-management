@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { activitiesApi } from '../../api';
 import type { Activity, PaginatedResponse, ActivityStatus } from '../../types';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
@@ -39,7 +39,7 @@ function SubActivities({ parentId }: { parentId: number }) {
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{s.name}</p>
               <StatusBadge status={s.status} />
             </div>
-            <Link to={`/activities/${s.activity_id}`}
+            <Link to={`/activities/${s.activity_id}`} state={{ from: '/activities' }}
               className="text-xs text-brand-500 hover:text-brand-600 flex-shrink-0">View →</Link>
           </div>
           <div className="mt-1.5 ml-4">
@@ -105,7 +105,7 @@ function ActivityCard({ a }: { a: Activity }) {
                 </svg>
               </button>
             )}
-            <Link to={`/activities/${a.activity_id}`}
+            <Link to={`/activities/${a.activity_id}`} state={{ from: '/activities' }}
               className="text-xs text-brand-500 hover:text-brand-600 font-medium">
               View →
             </Link>
