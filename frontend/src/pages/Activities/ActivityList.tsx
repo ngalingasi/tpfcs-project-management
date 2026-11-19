@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link } from 'react-router';
+import ActivityLink from '../../components/tpfcs/ActivityLink';
+import { useActivityChanged } from '../../utils/activityEvents';
 import { activitiesApi } from '../../api';
 import type { Activity, PaginatedResponse, ActivityStatus } from '../../types';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
@@ -39,8 +41,10 @@ function SubActivities({ parentId }: { parentId: number }) {
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{s.name}</p>
               <StatusBadge status={s.status} />
             </div>
-            <Link to={`/activities/${s.activity_id}`} state={{ from: '/activities' }}
-              className="text-xs text-brand-500 hover:text-brand-600 flex-shrink-0">View →</Link>
+            <span className="flex items-center gap-3 flex-shrink-0">
+              <ActivityLink id={s.activity_id} className="text-xs text-brand-500 hover:text-brand-600">Quick view</ActivityLink>
+              <Link to={`/activities/${s.activity_id}`} state={{ from: '/activities' }} className="text-xs text-gray-500 hover:text-brand-600">Open ↗</Link>
+            </span>
           </div>
           <div className="mt-1.5 ml-4">
             <BudgetBar value={s.progress} />
@@ -78,7 +82,7 @@ function ActivityCard({ a }: { a: Activity }) {
                   Sub-Activity
                 </span>
               )}
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{a.wbs_code && <span className="font-mono text-xs text-gray-400 mr-1.5">{a.wbs_code}</span>}{a.name}</h3>
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-white"><ActivityLink id={a.activity_id} className="hover:text-brand-500">{a.wbs_code && <span className="font-mono text-xs text-gray-400 mr-1.5">{a.wbs_code}</span>}{a.name}</ActivityLink></h3>
               <StatusBadge status={a.status} />
             </div>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
@@ -105,9 +109,12 @@ function ActivityCard({ a }: { a: Activity }) {
                 </svg>
               </button>
             )}
+            <ActivityLink id={a.activity_id} className="text-xs text-brand-500 hover:text-brand-600 font-medium">
+              Quick view
+            </ActivityLink>
             <Link to={`/activities/${a.activity_id}`} state={{ from: '/activities' }}
-              className="text-xs text-brand-500 hover:text-brand-600 font-medium">
-              View →
+              className="text-xs text-gray-500 hover:text-brand-600 font-medium">
+              Open ↗
             </Link>
           </div>
         </div>
@@ -181,6 +188,7 @@ export default function ActivityList() {
   }, [page, status]);
 
   useEffect(() => { load(); }, [load]);
+  useActivityChanged(load);
 
   // Filter: show/hide sub-activities in the flat list
   const displayed = data?.results.filter(a =>

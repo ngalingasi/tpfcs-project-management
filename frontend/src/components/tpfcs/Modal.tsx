@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface Props {
@@ -16,15 +16,41 @@ const SIZE_CLS = {
   xl: 'max-w-4xl',
 };
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md' }: Props) {
+// Several modals can be open at once (e.g. "Update status" on top of the activity viewer).
+// The page may only scroll again when the LAST one closes, and Escape closes only the top one.
+let openModals = 0;
+const escapeStack: Array<() => void> = [];
+
+/** Lock page scroll while open and close the top-most modal on Escape. */
+export function useModalBehavior(isOpen: boolean, onClose: () => void) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
+    if (!isOpen) return;
+    openModals += 1;
+    document.body.style.overflow = 'hidden';
+    const close = () => closeRef.current();
+    escapeStack.push(close);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && escapeStack[escapeStack.length - 1] === close) {
+        e.stopPropagation();
+        close();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      const i = escapeStack.indexOf(close);
+      if (i >= 0) escapeStack.splice(i, 1);
+      openModals = Math.max(0, openModals - 1);
+      if (openModals === 0) document.body.style.overflow = '';
+    };
   }, [isOpen]);
+}
+
+export default function Modal({ isOpen, onClose, title, children, size = 'md' }: Props) {
+  useModalBehavior(isOpen, onClose);
 
   if (!isOpen) return null;
 

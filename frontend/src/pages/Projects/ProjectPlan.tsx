@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { planApi } from '../../api';
 import type { PlanData, PlanRow } from '../../api/plan';
 import { useAuth } from '../../store/authStore';
 import PlanImportModal from '../../components/tpfcs/PlanImportModal';
+import ActivityLink from '../../components/tpfcs/ActivityLink';
+import { useActivityViewer } from '../../hooks/useActivityViewer';
+import { useActivityChanged } from '../../utils/activityEvents';
 
 const WEEKS_PER_MONTH = 4.345;
 const CELL = 18; // px per week column
@@ -27,7 +30,6 @@ export default function ProjectPlan() {
   const { id } = useParams();
   const pid = Number(id);
   const navigate = useNavigate();
-  const location = useLocation();
   const { user } = useAuth();
   const canManage = user?.role === 'admin' || user?.role === 'manager';
 
@@ -48,6 +50,8 @@ export default function ProjectPlan() {
   }, [pid]);
 
   useEffect(load, [load]);
+  useActivityChanged(load);
+  const viewer = useActivityViewer();
 
   const doExport = async (kind: 'xlsx' | 'pdf') => {
     setExporting(kind);
@@ -224,7 +228,7 @@ export default function ProjectPlan() {
                         {isObj ? (
                           <span className="font-bold text-gray-800 dark:text-white truncate" title={r.name}>{r.name}</span>
                         ) : (
-                          <Link to={`/activities/${r.id}`} state={{ from: location.pathname + location.search }} className="truncate text-gray-700 dark:text-gray-200 hover:text-brand-500" title={r.name}>{r.name}</Link>
+                          <ActivityLink id={r.id} className="truncate text-gray-700 dark:text-gray-200 hover:text-brand-500" title={`${r.name} — click for quick view`}>{r.name}</ActivityLink>
                         )}
                       </div>
                     </div>
@@ -239,7 +243,8 @@ export default function ProjectPlan() {
                         <div className="absolute top-0 bottom-0 w-px bg-red-400/70" style={{ left: (todayWeek - 0.5) * CELL }} />
                       )}
                       {r.start_week && r.end_week && (
-                        <div className="absolute rounded-sm overflow-hidden"
+                        <div className={`absolute rounded-sm overflow-hidden ${isObj ? '' : 'cursor-pointer'}`}
+                          onClick={isObj ? undefined : () => viewer.open(r.id)}
                           style={{
                             left: (r.start_week - 1) * CELL + 1,
                             width: Math.max((Math.min(r.end_week, weeks) - r.start_week + 1) * CELL - 2, 4),

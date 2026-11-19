@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link, useLocation } from 'react-router';
+import { useParams, Link } from 'react-router';
+import ActivityLink from '../../components/tpfcs/ActivityLink';
+import { useActivityChanged } from '../../utils/activityEvents';
 import {
   projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, sitesApi, lookupsApi,
 } from '../../api';
@@ -24,7 +26,6 @@ function Chevron({ open }: { open: boolean }) {
 }
 
 export default function ProjectOverview() {
-  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const pid = Number(id);
 
@@ -80,6 +81,7 @@ export default function ProjectOverview() {
   }, [pid]);
 
   useEffect(() => { load(); }, [load]);
+  useActivityChanged(load);
 
   const fmt = (n?: number | string | null) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
 
@@ -295,10 +297,9 @@ export default function ProjectOverview() {
                                       {targetActivities.length === 0 ? (
                                         <p className="text-xs text-gray-400">No activities under this target yet.</p>
                                       ) : targetActivities.map(a => (
-                                        <Link
+                                        <ActivityLink
                                           key={a.activity_id}
-                                          to={`/activities/${a.activity_id}?site_id=${site.site_id}`}
-                                          state={{ from: location.pathname + location.search }}
+                                          id={a.activity_id} siteId={site.site_id}
                                           className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
                                         >
                                           <div className="min-w-0">
@@ -312,7 +313,7 @@ export default function ProjectOverview() {
                                             <span className="text-xs text-gray-400">{a.progress}%</span>
                                             <StatusBadge status={a.status} />
                                           </div>
-                                        </Link>
+                                        </ActivityLink>
                                       ))}
                                     </div>
                                   )}

@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router';
+import ActivityLink from '../../components/tpfcs/ActivityLink';
+import { useActivityChanged } from '../../utils/activityEvents';
 import { projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, lookupsApi, sitesApi } from '../../api';
 import type { Project, Objective, Target, Activity, ProjectBudgetSummary, ProjectSite, Region } from '../../types';
 import { useAuth } from '../../store/authStore';
@@ -336,6 +338,7 @@ export default function ProjectDetail() {
   }, [pid]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+  useActivityChanged(loadAll);
 
   const deleteSite = async (siteId: number) => {
     if (!confirm('Delete this site?')) return;
@@ -803,7 +806,7 @@ export default function ProjectDetail() {
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-semibold text-gray-800 dark:text-white">{a.wbs_code && <span className="font-mono text-xs text-gray-400 mr-1.5">{a.wbs_code}</span>}{a.name}</h3>
+                    <h3 className="text-sm font-semibold text-gray-800 dark:text-white"><ActivityLink id={a.activity_id} className="hover:text-brand-500">{a.wbs_code && <span className="font-mono text-xs text-gray-400 mr-1.5">{a.wbs_code}</span>}{a.name}</ActivityLink></h3>
                     <StatusBadge status={a.status} />
                   </div>
                   <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap">
@@ -812,8 +815,11 @@ export default function ProjectDetail() {
                     {a.council && <span><svg className="w-3 h-3 inline-block flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg> {a.council}</span>}
                   </div>
                 </div>
-                <Link to={`/activities/${a.activity_id}`} state={{ from: `/projects/${pid}?tab=activities` }}
-                  className="text-xs text-brand-500 hover:text-brand-600 flex-shrink-0">View →</Link>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <ActivityLink id={a.activity_id} className="text-xs text-brand-500 hover:text-brand-600">Quick view</ActivityLink>
+                  <Link to={`/activities/${a.activity_id}`} state={{ from: `/projects/${pid}?tab=activities` }}
+                    className="text-xs text-gray-500 hover:text-brand-600">Open ↗</Link>
+                </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-2">
                 <div>
