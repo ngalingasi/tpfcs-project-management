@@ -145,7 +145,8 @@ router.route('/:projectId/objectives')
 
 // Documents nested
 router.route('/:projectId/documents')
-  .post(auth('manageProjects'), upload.single('file'), documentController.uploadDocument)
+  // any signed-in user may reach the route; the controller allows only admin / this project's manager
+  .post(auth('getProjects'), upload.single('file'), documentController.uploadDocument)
   .get(auth('getProjects'), documentController.getDocumentsByProject);
 
 // Sites nested

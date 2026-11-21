@@ -296,8 +296,16 @@ export interface BudgetRevision {
 export interface Document {
   document_id: number;
   project_id?: number;
-  activity_id?: number;
+  activity_id?: number | null;
+  site_id?: number | null;
+  site_name?: string | null;
   name: string;
+  description?: string | null;
+  category?: 'document' | 'picture';
+  sort_order?: number;
+  file_url?: string | null;
+  uploaded_by_name?: string | null;
+  comment_count?: number;
   file_path?: string;
   mime_type?: string;
   size?: number;

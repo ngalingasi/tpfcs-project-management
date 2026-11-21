@@ -86,6 +86,8 @@ export const activitiesApi = {
     client.delete(`/activities/${activityId}/documents/${documentId}`),
   updateDocumentSortOrder: (activityId: number, documentId: number, sortOrder: number) =>
     client.patch(`/activities/${activityId}/documents/${documentId}`, { sort_order: sortOrder }),
+  updateDocumentDetails: (activityId: number, documentId: number, data: { name?: string; description?: string | null; site_id?: number | null }) =>
+    client.patch(`/activities/${activityId}/documents/${documentId}`, data),
   getDocumentComments: (activityId: number, documentId: number) =>
     client.get(`/activities/${activityId}/documents/${documentId}/comments`),
   addDocumentComment: (activityId: number, documentId: number, comment: string) =>
@@ -139,23 +141,32 @@ export const budgetApi = {
 
 // ── Documents ─────────────────────────────────────────────────────────────────
 export const documentsApi = {
-  listByProject: (projectId: number) =>
-    client.get<Document[]>(`/projects/${projectId}/documents`),
+  listByProject: (projectId: number, category?: 'document' | 'picture') =>
+    client.get<Document[]>(`/projects/${projectId}/documents`, { params: category ? { category } : undefined }),
   get: (id: number) =>
     client.get<Document>(`/documents/${id}`),
   upload: (projectId: number, formData: FormData) =>
     client.post<Document>(`/projects/${projectId}/documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  update: (documentId: number, data: { name?: string; description?: string | null; site_id?: number | null; category?: 'document' | 'picture' }) =>
+    client.patch<Document>(`/documents/${documentId}`, data),
+  remove: (documentId: number) =>
+    client.delete(`/documents/${documentId}`),
   uploadVersion: (documentId: number, formData: FormData) =>
     client.post<Document>(`/documents/${documentId}/versions`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  comments: (documentId: number) =>
+    client.get<any[]>(`/documents/${documentId}/comments`),
+  addComment: (documentId: number, comment: string) =>
+    client.post<any>(`/documents/${documentId}/comments`, { comment }),
+  deleteComment: (documentId: number, commentId: number) =>
+    client.delete(`/documents/${documentId}/comments/${commentId}`),
   downloadUrl: (documentId: number, version?: number) =>
     `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000/v1'}/documents/${documentId}/download${version ? `/${version}` : ''}`,
-  delete: (id: number) =>
-    client.delete(`/documents/${id}`),
 };
+
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const usersApi = {

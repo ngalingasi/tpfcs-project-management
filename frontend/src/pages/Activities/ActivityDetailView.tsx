@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { fileUrl as sharedFileUrl } from '../../utils/fileUrl';
 import { Link } from 'react-router';
 import { activitiesApi, budgetApi, sitesApi } from '../../api';
 import type { Activity, ActivityStatusHistory, BudgetRevision, ActivityStatus, ProjectSite } from '../../types';
@@ -244,6 +245,33 @@ export default function ActivityDetailView({
     } catch { toast.error('Failed to delete comment'); }
   };
 
+  const [editDocItem, setEditDocItem] = useState<any | null>(null);
+  const [editDocForm, setEditDocForm] = useState({ name: '', description: '', site_id: '' });
+  const [savingDocEdit, setSavingDocEdit] = useState(false);
+  const openEditDoc = (d: any) => {
+    setEditDocItem(d);
+    setEditDocForm({ name: d.name ?? '', description: d.description ?? '', site_id: d.site_id ? String(d.site_id) : '' });
+  };
+  const submitEditDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editDocItem) return;
+    if (!editDocForm.name.trim()) { toast.error('Name required'); return; }
+    setSavingDocEdit(true);
+    try {
+      const res = await activitiesApi.updateDocumentDetails(aid, editDocItem.document_id, {
+        name: editDocForm.name.trim(),
+        description: editDocForm.description.trim() || null,
+        site_id: editDocForm.site_id ? Number(editDocForm.site_id) : null,
+      });
+      const merge = (list: any[]) => list.map(d => d.document_id === editDocItem.document_id ? { ...d, ...res.data } : d);
+      setDocuments(merge); setPictures(merge);
+      toast.success('Details updated');
+      setEditDocItem(null);
+    } catch (err: any) {
+      toast.error('Update failed', err?.response?.data?.message);
+    } finally { setSavingDocEdit(false); }
+  };
+
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<{ doc: any; category: 'document' | 'picture' } | null>(null);
   const [deletingDoc, setDeletingDoc] = useState(false);
 
@@ -294,12 +322,7 @@ export default function ActivityDetailView({
   const allowedNext = activity ? (TRANSITIONS[activity.status] ?? []) : [];
 
 
-  const fileUrl = (doc: any) => {
-    const base = (import.meta.env.VITE_API_URL ?? '').replace('/api', '');
-    const filePath = doc.file_path ?? '';
-    const filename = filePath.includes('/') ? filePath.split('/').pop() : filePath;
-    return `${base}/uploads/${filename}`;
-  };
+  const fileUrl = sharedFileUrl;
 
   if (loading) return (
     <div className="space-y-4 animate-pulse">
@@ -703,6 +726,8 @@ export default function ActivityDetailView({
                     {canDeleteDoc(doc) && (
                       <>
                         <span className="text-gray-300 dark:text-gray-600">·</span>
+                        <button onClick={() => openEditDoc(doc)} className="text-xs text-gray-500 hover:text-brand-600">Edit</button>
+                        <span className="text-gray-300 dark:text-gray-600">·</span>
                         <button
                           onClick={() => requestDeleteDocument(doc, 'document')}
                           className="text-xs text-gray-400 hover:text-red-500"
@@ -771,6 +796,13 @@ export default function ActivityDetailView({
                     <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-medium pointer-events-none">
                       {pic.comment_count} 💬
                     </span>
+                  )}
+                  {canDeleteDoc(pic) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openEditDoc(pic); }}
+                      className="absolute top-2 left-11 px-2 h-7 flex items-center justify-center rounded-full bg-black/60 text-white text-[11px] opacity-0 group-hover:opacity-100 hover:bg-brand-600 transition-opacity"
+                      title="Edit details"
+                    >Edit</button>
                   )}
                   {canDeleteDoc(pic) && (
                     <button
@@ -1090,6 +1122,36 @@ export default function ActivityDetailView({
           onClose={() => setPreviewDoc(null)}
         />
       )}
+
+      {/* Edit document details */}
+      <Modal isOpen={!!editDocItem} onClose={() => setEditDocItem(null)} title="Edit details" size="lg">
+        <form onSubmit={submitEditDoc} className="space-y-5">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Name</label>
+            <input type="text" value={editDocForm.name} onChange={e => setEditDocForm(f => ({ ...f, name: e.target.value }))}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Description</label>
+            <textarea rows={3} value={editDocForm.description} onChange={e => setEditDocForm(f => ({ ...f, description: e.target.value }))}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400" />
+          </div>
+          {objectiveSites.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Site</label>
+              <select value={editDocForm.site_id} onChange={e => setEditDocForm(f => ({ ...f, site_id: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400">
+                <option value="">Not tied to a specific site</option>
+                {objectiveSites.map(s => <option key={s.site_id} value={s.site_id}>{s.site_name}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setEditDocItem(null)} className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700">Cancel</button>
+            <button type="submit" disabled={savingDocEdit} className="px-4 py-2 text-sm rounded-lg bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50">Save</button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Upload Document / Picture Modal */}
       <Modal isOpen={!!uploadModal} onClose={() => setUploadModal(null)} title={uploadModal === 'picture' ? 'Upload Picture' : 'Upload Document'} size="xl">

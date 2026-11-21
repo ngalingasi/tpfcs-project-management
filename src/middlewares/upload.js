@@ -35,6 +35,12 @@ const fileFilter = (req, file, cb) => {
     'image/jpeg',
     'image/png',
     'image/gif',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/csv',
+    'text/plain',
+    'application/zip',
+    'application/x-zip-compressed',
   ];
   if (allowed.includes(file.mimetype)) {
     cb(null, true);

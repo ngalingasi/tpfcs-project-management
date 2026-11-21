@@ -170,7 +170,14 @@ const updateDocumentSortOrder = catchAsync(async (req, res) => {
   if (!isOwner && req.user.role !== 'admin' && !perms.canUploadDocument) {
     throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to edit this document');
   }
-  const updated = await documentModel.updateDocumentSortOrder(req.params.documentId, Number(req.body.sort_order) || 0);
+  // Same endpoint now also edits the details (name, description, site). sort_order alone still works.
+  if (doc.activity_id == null || Number(doc.activity_id) !== Number(req.params.activityId)) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Document not found on this activity');
+  }
+  const { name, description, site_id: siteId, sort_order: sortOrder } = req.body;
+  if (name !== undefined && !String(name).trim()) throw new ApiError(httpStatus.BAD_REQUEST, 'Name cannot be empty');
+  if (sortOrder !== undefined) await documentModel.updateDocumentSortOrder(req.params.documentId, Number(sortOrder) || 0);
+  const updated = await documentModel.updateDocumentDetails(req.params.documentId, { name, description, site_id: siteId });
   res.send(updated);
 });
 

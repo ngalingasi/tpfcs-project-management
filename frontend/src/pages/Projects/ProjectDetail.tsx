@@ -8,8 +8,7 @@ import { useAuth } from '../../store/authStore';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import BulletList from '../../components/tpfcs/BulletList';
-import FilePreview from '../../components/tpfcs/FilePreview';
-import { documentsApi } from '../../api';
+import ProjectDocumentsPanel from '../../components/tpfcs/ProjectDocumentsPanel';
 import Modal from '../../components/tpfcs/Modal';
 import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
 import RichTextEditor from '../../components/tpfcs/RichTextEditor';
@@ -299,9 +298,6 @@ export default function ProjectDetail() {
   const tab: Tab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'details';
   const setTab = (t: Tab) => setSearchParams(t === 'details' ? {} : { tab: t }, { replace: true });
   const [modal,        setModal]        = useState<'objective' | 'target' | 'allocate' | 'site' | null>(null);
-  const [documents,     setDocuments]     = useState<any[]>([]);
-  const [previewDoc,    setPreviewDoc]    = useState<{url:string;name:string;mime?:string}|null>(null);
-  const [uploadingDoc,  setUploadingDoc]  = useState(false);
   const [allocateTarget, setAllocateTarget] = useState<Target | null>(null);
   const [editSite,      setEditSite]      = useState<ProjectSite | null>(null);
 
@@ -315,7 +311,6 @@ export default function ProjectDetail() {
       setProject(pRes.data);
       setObjectives(oRes.data);
       budgetApi.projectSummary(pid).then(r => setBudget(r.data)).catch(() => {});
-      documentsApi.listByProject(pid).then(r => setDocuments(r.data)).catch(() => {});
       sitesApi.listByProject(pid).then(r => setSites(r.data)).catch(() => {});
       lookupsApi.regions().then(r => setRegions(r.data)).catch(() => {});
 
@@ -355,16 +350,10 @@ export default function ProjectDetail() {
     { key: 'objectives', label: 'Objectives', count: objectives.length },
     { key: 'targets',    label: 'Targets',    count: targets.length },
     { key: 'activities', label: 'Activities', count: activities.length },
+    { key: 'documents',  label: 'Documents' },
   ];
 
 
-  const fileUrl = (doc: any) => {
-    const base = (import.meta.env.VITE_API_URL ?? '').replace('/api', '');
-    const filePath = doc.file_path ?? '';
-    // file_path stored as "uploads/filename.pdf" or just "filename.pdf"
-    const filename = filePath.includes('/') ? filePath.split('/').pop() : filePath;
-    return `${base}/uploads/${filename}`;
-  };
 
   if (loading) return (
     <div className="p-6 space-y-4 animate-pulse">
@@ -851,83 +840,7 @@ export default function ProjectDetail() {
 
       {/* ── DOCUMENTS TAB ── */}
       {tab === 'documents' && (
-        <div className="space-y-4">
-          {/* Upload */}
-          <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 text-center">
-            <label className="cursor-pointer block">
-              <input type="file" className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setUploadingDoc(true);
-                  const fd = new FormData();
-                  fd.append('file', file);
-                  fd.append('name', file.name);
-                  try {
-                    const res = await documentsApi.upload(pid, fd);
-                    setDocuments(prev => [res.data, ...prev]);
-                  } catch { /* silent */ }
-                  finally { setUploadingDoc(false); e.target.value = ''; }
-                }}
-              />
-              {uploadingDoc ? (
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                  <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-                  Uploading...
-                </div>
-              ) : (
-                <>
-                  <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload project document</p>
-                  <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG, DOCX up to 50MB</p>
-                </>
-              )}
-            </label>
-          </div>
-
-          {/* Document list */}
-          {documents.length === 0 ? (
-            <p className="text-center py-8 text-sm text-gray-400">No documents uploaded yet</p>
-          ) : (
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
-              {documents.map((doc: any) => (
-                <div key={doc.document_id}
-                  className="flex items-center gap-4 px-4 py-3 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{doc.name}</p>
-                    <p className="text-xs text-gray-400">
-                      {doc.uploaded_by_name ?? doc.created_by}
-                      {doc.size ? ` · ${(doc.size / 1024).toFixed(1)} KB` : ''}
-                      {doc.version_number ? ` · v${doc.version_number}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => setPreviewDoc({ url: fileUrl(doc), name: doc.name, mime: doc.mime_type })}
-                      className="px-2.5 py-1 text-xs text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-md"
-                    >Preview</button>
-                    <a href={fileUrl(doc)} download={doc.name}
-                      className="px-2.5 py-1 text-xs text-gray-500 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">
-                      Download
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* File Preview */}
-      {previewDoc && (
-        <FilePreview url={previewDoc.url} name={previewDoc.name} mimeType={previewDoc.mime} onClose={() => setPreviewDoc(null)} />
+        <ProjectDocumentsPanel projectId={pid} projectManagerId={project?.project_manager_id} sites={sites} />
       )}
 
       {/* ── Modals ── */}
