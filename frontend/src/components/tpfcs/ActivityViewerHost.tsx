@@ -18,13 +18,13 @@ export default function ActivityViewerHost() {
 function ViewerModal({ id, siteId }: { id: number; siteId: number | null }) {
   const location = useLocation();
   const { open, close } = useActivityViewer();
-  useModalBehavior(true, close);
+  const z = useModalBehavior(true, close);
 
   const base = baseUrl(location.pathname, location.search);
   const here = location.pathname + location.search;
 
   return createPortal(
-    <div className="fixed inset-0 z-[99999] flex items-stretch sm:items-center justify-center sm:p-4">
+    <div className="fixed inset-0 flex items-stretch sm:items-center justify-center sm:p-4" style={{ zIndex: z }}>
       <div className="absolute inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-[2px]" onClick={close} />
 
       <div className="relative w-full max-w-6xl bg-gray-50 dark:bg-gray-950 sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col h-full sm:h-auto sm:max-h-[calc(100vh-2rem)]">

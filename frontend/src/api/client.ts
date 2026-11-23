@@ -26,26 +26,44 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = [];
 };
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 client.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
-    const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean; _retries?: number }) | undefined;
+    if (!original) return Promise.reject(error);
 
-    if (error.response?.status === 401 && !original._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            original.headers.Authorization = `Bearer ${token}`;
-            return client(original);
-          })
-          .catch(Promise.reject);
+    // Temporary server/proxy hiccup (503/502/504 or no response while PM2 reloads): retry safe GETs a couple of times.
+    const status = error.response?.status;
+    const transient = status === 502 || status === 503 || status === 504 || (!error.response && error.code !== 'ERR_CANCELED');
+    if (transient && (original.method ?? 'get').toLowerCase() === 'get' && (original._retries ?? 0) < 2) {
+      original._retries = (original._retries ?? 0) + 1;
+      await sleep(700 * original._retries);
+      return client(original);
+    }
+
+    if (status === 401 && !original._retry) {
+      original._retry = true;
+      const sentToken = (original.headers?.Authorization as string | undefined)?.replace('Bearer ', '');
+      const currentToken = localStorage.getItem('access_token');
+
+      // Another request or browser tab already refreshed the token: just retry with the new one.
+      if (currentToken && sentToken && currentToken !== sentToken) {
+        original.headers.Authorization = `Bearer ${currentToken}`;
+        return client(original);
       }
 
-      original._retry = true;
-      isRefreshing = true;
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          original.headers.Authorization = `Bearer ${token}`;
+          return client(original);
+        });
+      }
 
+      isRefreshing = true;
       const refreshToken = localStorage.getItem('refresh_token');
       if (!refreshToken) {
         isRefreshing = false;
@@ -62,8 +80,20 @@ client.interceptors.response.use(
         return client(original);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.clear();
-        window.location.href = '/signin';
+        const rs = (refreshError as AxiosError).response?.status;
+        // Sign out only when the server says the refresh token is invalid. A 5xx / network error is
+        // temporary, so keep the session and let the user retry.
+        if (rs === 401 || rs === 400 || rs === 403) {
+          // Another tab may have rotated the tokens meanwhile.
+          const latest = localStorage.getItem('refresh_token');
+          if (latest && latest !== refreshToken) {
+            isRefreshing = false;
+            original.headers.Authorization = `Bearer ${localStorage.getItem('access_token')}`;
+            return client(original);
+          }
+          localStorage.clear();
+          window.location.href = '/signin';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

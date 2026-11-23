@@ -56,6 +56,7 @@ export const targetsApi = {
 export interface ActivityFilters {
   page?: number;
   limit?: number;
+  project_id?: number;
   target_id?: number;
   region_id?: number;
   status?: string;

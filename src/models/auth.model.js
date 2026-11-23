@@ -42,15 +42,21 @@ const logout = async (refreshToken) => {
  * Refresh auth tokens
  */
 const refreshAuth = async (refreshToken) => {
+  let tokenDoc;
   try {
-    const tokenDoc = await tokenModel.verifyToken(refreshToken, tokenTypes.REFRESH);
-    const rows = await query('SELECT * FROM users WHERE user_id = ? AND status = "active"', [tokenDoc.user_id]);
-    if (!rows.length) throw new Error();
-    await query('DELETE FROM tokens WHERE token = ?', [refreshToken]);
-    return tokenModel.generateAuthTokens(rows[0]);
-  } catch {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate');
+    tokenDoc = await tokenModel.verifyToken(refreshToken, tokenTypes.REFRESH);
+  } catch (err) {
+    // Only a bad/expired/used token is a 401. A database or other server fault must stay a 5xx,
+    // otherwise the browser treats a temporary outage as "session invalid" and logs the user out.
+    if (err instanceof ApiError || /jwt|token|expired|not found|invalid/i.test(err.message || '')) {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate');
+    }
+    throw err;
   }
+  const rows = await query('SELECT * FROM users WHERE user_id = ? AND status = "active"', [tokenDoc.user_id]);
+  if (!rows.length) throw new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate');
+  await query('DELETE FROM tokens WHERE token = ?', [refreshToken]);
+  return tokenModel.generateAuthTokens(rows[0]);
 };
 
 /**

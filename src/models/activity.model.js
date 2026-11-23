@@ -69,12 +69,13 @@ const createActivity = async (body, creatorId) => {
 /**
  * Get paginated activities with optional filters
  */
-const getActivities = async ({ page, limit, target_id, region_id, status, assigned_user_id, project_manager_id }) => {
+const getActivities = async ({ page, limit, project_id, target_id, region_id, status, assigned_user_id, project_manager_id }) => {
   const { limit: l, offset, paginate } = buildPagination(page, limit);
 
   let where = '1=1';
   const params = [];
 
+  if (project_id)       { where += ' AND ob.project_id = ?';      params.push(parseInt(project_id, 10)); }
   if (target_id)        { where += ' AND a.target_id = ?';        params.push(parseInt(target_id, 10)); }
   if (region_id)        { where += ' AND a.region_id = ?';        params.push(parseInt(region_id, 10)); }
   if (status)           { where += ' AND a.status = ?';           params.push(status); }
@@ -89,7 +90,13 @@ const getActivities = async ({ page, limit, target_id, region_id, status, assign
     params.push(parseInt(project_manager_id, 10));
   }
 
-  const [countRow] = await query(`SELECT COUNT(*) AS total FROM activities a WHERE ${where}`, params);
+  const [countRow] = await query(
+    `SELECT COUNT(*) AS total FROM activities a
+     LEFT JOIN targets t ON t.target_id = a.target_id
+     LEFT JOIN objectives ob ON ob.objective_id = t.objective_id
+     WHERE ${where}`,
+    params
+  );
   const activities = await query(
     `SELECT a.*,
             COALESCE(a.revised_amount, a.budgeted_amount) AS effective_budget,

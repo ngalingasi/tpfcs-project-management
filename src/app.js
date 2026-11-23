@@ -16,6 +16,10 @@ const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError            = require('./utils/ApiError');
 
 const app = express();
+
+// Behind nginx: trust the first proxy so req.ip is the real client (not 127.0.0.1) and the rate limiter
+// counts each user separately instead of one shared bucket for everyone.
+app.set('trust proxy', 1);
 app.disable('etag');
 
 // ── Logging ───────────────────────────────────────────────────────────────────

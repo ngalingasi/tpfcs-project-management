@@ -23,7 +23,7 @@ const getActivities = catchAsync(async (req, res) => {
   } else if (req.user.role === 'manager') {
     // Manager sees activities on projects they manage
     // If no specific filter, filter by their projects
-    if (!params.assigned_user_id && !params.target_id) {
+    if (!params.assigned_user_id && !params.target_id && !params.project_id) {
       params.project_manager_id = req.user.user_id;
     }
   }

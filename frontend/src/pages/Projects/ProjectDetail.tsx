@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router';
 import ActivityLink from '../../components/tpfcs/ActivityLink';
+import TargetActivitiesModal from '../../components/tpfcs/TargetActivitiesModal';
 import { useActivityChanged } from '../../utils/activityEvents';
 import { projectsApi, objectivesApi, targetsApi, activitiesApi, budgetApi, lookupsApi, sitesApi } from '../../api';
 import type { Project, Objective, Target, Activity, ProjectBudgetSummary, ProjectSite, Region } from '../../types';
@@ -300,6 +301,7 @@ export default function ProjectDetail() {
   const [modal,        setModal]        = useState<'objective' | 'target' | 'allocate' | 'site' | null>(null);
   const [allocateTarget, setAllocateTarget] = useState<Target | null>(null);
   const [editSite,      setEditSite]      = useState<ProjectSite | null>(null);
+  const [activitiesOfTarget, setActivitiesOfTarget] = useState<Target | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -322,11 +324,14 @@ export default function ProjectDetail() {
       }
       setTargets(allTargets);
 
-      // Load activities
-      const aRes = await activitiesApi.list({ page: 1, limit: 100 });
-      // Filter to this project's targets
-      const targetIds = new Set(allTargets.map(t => t.target_id));
-      setActivities(aRes.data.results.filter(a => targetIds.has(a.target_id)));
+      // Load every activity of this project (the API caps a page at 100, so read all pages)
+      const all: Activity[] = [];
+      for (let page = 1; page <= 50; page++) {
+        const aRes = await activitiesApi.list({ project_id: pid, page, limit: 100 });
+        all.push(...aRes.data.results);
+        if (page >= (aRes.data.totalPages ?? 1) || aRes.data.results.length === 0) break;
+      }
+      setActivities(all);
     } finally {
       setLoading(false);
     }
@@ -355,7 +360,7 @@ export default function ProjectDetail() {
 
 
 
-  if (loading) return (
+  if (loading && !project) return (
     <div className="p-6 space-y-4 animate-pulse">
       <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-64" />
       <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded" />
@@ -746,7 +751,13 @@ export default function ProjectDetail() {
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs mb-3">
                       <div><p className="text-gray-400">Target</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.target_value} {t.unit}</p></div>
                       <div><p className="text-gray-400">Current</p><p className="font-medium text-gray-700 dark:text-gray-300">{t.current_value} {t.unit}</p></div>
-                      <div><p className="text-gray-400">Activities</p><p className="font-medium text-gray-700 dark:text-gray-300">{tActs.length}</p></div>
+                      <div>
+                        <p className="text-gray-400">Activities</p>
+                        {tActs.length > 0 ? (
+                          <button onClick={() => setActivitiesOfTarget(t)} title="View activities of this target"
+                            className="font-medium text-brand-500 hover:text-brand-600 underline decoration-dotted underline-offset-2">{tActs.length}</button>
+                        ) : <p className="font-medium text-gray-700 dark:text-gray-300">0</p>}
+                      </div>
                       <div>
                         <p className="text-gray-400">Paid</p>
                         <p className={`font-medium ${totalPaid > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
@@ -842,6 +853,8 @@ export default function ProjectDetail() {
       {tab === 'documents' && (
         <ProjectDocumentsPanel projectId={pid} projectManagerId={project?.project_manager_id} sites={sites} />
       )}
+
+      <TargetActivitiesModal target={activitiesOfTarget} activities={activities} onClose={() => setActivitiesOfTarget(null)} />
 
       {/* ── Modals ── */}
       <Modal isOpen={modal === 'site'} onClose={() => { setModal(null); setEditSite(null); }} title={editSite ? 'Edit Site' : 'Add Site'} size="md">

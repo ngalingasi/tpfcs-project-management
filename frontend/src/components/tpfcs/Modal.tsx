@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface Props {
@@ -22,9 +22,19 @@ let openModals = 0;
 const escapeStack: Array<() => void> = [];
 
 /** Lock page scroll while open and close the top-most modal on Escape. */
-export function useModalBehavior(isOpen: boolean, onClose: () => void) {
+export const BASE_Z = 99999;
+
+/** Lock page scroll while open, close the top-most modal on Escape, and return a z-index that
+ *  puts this modal above every modal that was opened before it (whatever component renders it). */
+export function useModalBehavior(isOpen: boolean, onClose: () => void): number {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const [layer, setLayer] = useState(0);
+
+  // Layer = number of modals already open at the moment this one opens.
+  useLayoutEffect(() => {
+    if (isOpen) setLayer(escapeStack.length);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,10 +57,12 @@ export function useModalBehavior(isOpen: boolean, onClose: () => void) {
       if (openModals === 0) document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  return BASE_Z + layer * 10;
 }
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }: Props) {
-  useModalBehavior(isOpen, onClose);
+  const z = useModalBehavior(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -58,8 +70,8 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
     // Full-screen overlay rendered directly into document.body
     // z-[99999] ensures it sits above header, sidebar and all other UI
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-      style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: z, paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
     >
       {/* Backdrop */}
       <div
