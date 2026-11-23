@@ -45,6 +45,7 @@ router.route('/:userId')
   .patch(auth('manageUsers'), validate(updateUserSchema), userController.updateUser)
   .delete(auth('manageUsers'), userController.deleteUser);
 
+router.post('/:userId/reset-password', auth('manageUsers'), userController.resetPassword);
 router.put('/:userId/skills', auth('manageUsers'), userController.updateSkills);
 
 module.exports = router;

@@ -66,6 +66,9 @@ JWT_SECRET=<64-char-random>
 JWT_ACCESS_EXPIRATION_MINUTES=30
 JWT_REFRESH_EXPIRATION_DAYS=30
 ALLOWED_ORIGINS=https://projects.tpfcs.co.tz
+# Optional: password given to users created without one and set by "Reset password".
+# Users must change it at first login. If unset, a random password is generated and shown once.
+# DEFAULT_USER_PASSWORD=ChangeMe@2026
 APP_URL=https://projects.tpfcs.co.tz
 # SMTP settings...
 # BRANDBOX settings...

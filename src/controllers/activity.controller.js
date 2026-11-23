@@ -16,8 +16,11 @@ const getActivityPerms = (req, activityId) =>
 // User (role=user): only their assigned activities
 const getActivities = catchAsync(async (req, res) => {
   const params = { ...req.query };
+  delete params.project_ids; // never taken from the request
 
-  if (req.user.role === 'user') {
+  if (req.user.role === 'guest') {
+    params.project_ids = req.guestProjectIds || [];
+  } else if (req.user.role === 'user') {
     // Force filter to only assigned activities
     params.assigned_user_id = req.user.user_id;
   } else if (req.user.role === 'manager') {

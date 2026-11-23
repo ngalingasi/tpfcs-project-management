@@ -3,6 +3,7 @@ import Modal from './Modal';
 import ActivityLink from './ActivityLink';
 import StatusBadge from './StatusBadge';
 import type { Activity, Target } from '../../types';
+import { useAuth } from '../../store/authStore';
 
 interface Props {
   target: Target | null;
@@ -18,6 +19,7 @@ const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString('en-GB', { d
 
 /** Read-only list of one target's activities (sub-activities indented under their main activity). */
 export default function TargetActivitiesModal({ target, activities, onClose }: Props) {
+  const isGuest = useAuth().user?.role === 'guest';
   const rows = useMemo(() => {
     if (!target) return [] as { a: Activity; depth: number }[];
     const mine = activities.filter(a => a.target_id === target.target_id);
@@ -57,7 +59,7 @@ export default function TargetActivitiesModal({ target, activities, onClose }: P
                 <th className="py-2 px-2 font-medium">Status</th>
                 <th className="py-2 px-2 font-medium w-32">Progress</th>
                 <th className="py-2 px-2 font-medium whitespace-nowrap">Dates</th>
-                <th className="py-2 px-2 font-medium text-right">Budget (TZS)</th>
+                {!isGuest && <th className="py-2 px-2 font-medium text-right">Budget (TZS)</th>}
               </tr>
             </thead>
             <tbody>
@@ -79,7 +81,7 @@ export default function TargetActivitiesModal({ target, activities, onClose }: P
                     </div>
                   </td>
                   <td className="py-2.5 px-2 text-xs text-gray-500 whitespace-nowrap">{fmtDate(a.start_date)} – {fmtDate(a.end_date)}</td>
-                  <td className="py-2.5 px-2 text-right text-gray-700 dark:text-gray-300">{fmt(a.effective_budget ?? a.budgeted_amount)}</td>
+                  {!isGuest && <td className="py-2.5 px-2 text-right text-gray-700 dark:text-gray-300">{fmt(a.effective_budget ?? a.budgeted_amount)}</td>}
                 </tr>
               ))}
             </tbody>

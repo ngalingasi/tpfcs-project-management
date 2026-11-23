@@ -2,6 +2,7 @@ const passport   = require('passport');
 const httpStatus = require('http-status');
 const ApiError   = require('../utils/ApiError');
 const { roleRights } = require('../config/roles');
+const { enforceGuest } = require('./guestGuard');
 
 // Paths allowed even when must_change_password = 1
 // Use suffix matching — works regardless of /v1 or /api prefix
@@ -11,7 +12,7 @@ const PASSWORD_CHANGE_WHITELIST = [
   '/auth/me',
 ];
 
-const verifyCallback = (req, resolve, reject, requiredRights) => async (err, user, info) => {
+const verifyCallback = (req, res, resolve, reject, requiredRights) => async (err, user, info) => {
   if (err || info || !user) {
     return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate'));
   }
@@ -46,12 +47,17 @@ const verifyCallback = (req, resolve, reject, requiredRights) => async (err, use
     }
   }
 
+  // Guests: deny-by-default route list, project scoping, money fields removed from responses
+  if (user.role === 'guest') {
+    try { await enforceGuest(req, res); } catch (e) { return reject(e); }
+  }
+
   resolve();
 };
 
 const auth = (...requiredRights) => async (req, res, next) => {
   return new Promise((resolve, reject) => {
-    passport.authenticate('jwt', { session: false }, verifyCallback(req, resolve, reject, requiredRights))(req, res, next);
+    passport.authenticate('jwt', { session: false }, verifyCallback(req, res, resolve, reject, requiredRights))(req, res, next);
   })
     .then(() => next())
     .catch((err) => next(err));

@@ -875,7 +875,7 @@ pre[class*="language-"].line-numbers {
 
 /* Calendar for the plan import dialog is attached to <body>; keep it above the dialog (z-[99999]) */
 .flatpickr-calendar.plan-date-popup {
-  z-index: 100000 !important;
+  z-index: 100500 !important;
 }
 .flatpickr-calendar.plan-date-popup:before,
 .flatpickr-calendar.plan-date-popup:after {

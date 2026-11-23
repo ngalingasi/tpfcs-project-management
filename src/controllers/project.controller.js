@@ -8,7 +8,9 @@ const createProject = catchAsync(async (req, res) => {
 });
 
 const getProjects = catchAsync(async (req, res) => {
-  const result = await projectModel.getProjects(req.query);
+  const filters = { ...req.query };
+  if (req.user.role === 'guest') filters.project_ids = req.guestProjectIds || [];
+  const result = await projectModel.getProjects(filters);
   res.send(result);
 });
 

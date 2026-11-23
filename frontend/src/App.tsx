@@ -49,6 +49,7 @@ import BudgetRevisions    from "./pages/Budget/BudgetRevisions";
 
 // Users
 import UsersPage          from "./pages/Users/UsersPage";
+import GuestsPage         from "./pages/Guests/GuestsPage";
 
 // Lookups
 import LookupsPage        from "./pages/Lookups/LookupsPage";
@@ -130,6 +131,12 @@ export default function App() {
           </Route>
 
           {/* ── Admin + Manager only ──────────────────────────────── */}
+          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+            <Route element={<AppLayout />}>
+              <Route path="/guests" element={<GuestsPage />} />
+            </Route>
+          </Route>
+
           <Route element={<ProtectedRoute allowedRoles={["admin", "manager"]} />}>
             <Route element={<AppLayout />}>
               <Route path="/users"                     element={<UsersPage />} />

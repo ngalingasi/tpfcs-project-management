@@ -3,8 +3,10 @@ const bcrypt = require('bcryptjs');
 const { query } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const { buildPagination } = require('../utils/paginate');
+const crypto = require('crypto');
+const config = require('../config/config');
 
-const SAFE_FIELDS = 'user_id, full_name, username, email, mobile, gender, avatar, role, status, must_change_password, last_password_changed, next_password_change, created_at, created_by';
+const SAFE_FIELDS = 'user_id, full_name, username, email, mobile, organisation, gender, avatar, role, guest_expires_at, status, must_change_password, last_password_changed, next_password_change, created_at, created_by';
 
 /**
  * Create a user
@@ -113,4 +115,24 @@ const deleteUser = async (id) => {
   await query('UPDATE users SET status = "inactive" WHERE user_id = ?', [id]);
 };
 
-module.exports = { createUser, getUsers, getUserById, updateUser, deleteUser, getSkills, updateUserSkills };
+/** The password new accounts and resets get: the configured default, else a random one. */
+const pickPassword = () => {
+  if (config.defaultPassword) return { password: config.defaultPassword, isDefault: true };
+  return { password: crypto.randomBytes(5).toString('hex'), isDefault: false };
+};
+
+/**
+ * Admin resets someone's password. They must choose a new one at next login and every existing
+ * session (refresh tokens) is signed out. Returns the temporary password so the admin can pass it on.
+ */
+const resetPassword = async (id) => {
+  const rows = await query('SELECT user_id FROM users WHERE user_id = ?', [id]);
+  if (!rows.length) throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  const { password, isDefault } = pickPassword();
+  const hash = await bcrypt.hash(password, 10);
+  await query('UPDATE users SET password_hash = ?, must_change_password = 1, last_password_changed = NULL WHERE user_id = ?', [hash, id]);
+  await query('DELETE FROM tokens WHERE user_id = ?', [id]);
+  return { password, is_default: isDefault };
+};
+
+module.exports = { pickPassword, resetPassword, createUser, getUsers, getUserById, updateUser, deleteUser, getSkills, updateUserSkills };

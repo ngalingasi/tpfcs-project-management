@@ -32,6 +32,8 @@ const envVarsSchema = Joi.object()
     BRANDBOX_SENDER_NAME: Joi.string().default('TPFCS'),
     // OTP
     OTP_EXPIRY_MINUTES:   Joi.number().default(10),
+    // Password given to users the admin creates without one, and used by "Reset password" (optional)
+    DEFAULT_USER_PASSWORD: Joi.string().min(8).optional(),
     // File Upload
     UPLOAD_DIR: Joi.string().default('uploads'),
     MAX_FILE_SIZE: Joi.number().default(52428800), // 50MB
@@ -82,6 +84,7 @@ module.exports = {
   otp: {
     expiryMinutes: envVars.OTP_EXPIRY_MINUTES,
   },
+  defaultPassword: envVars.DEFAULT_USER_PASSWORD || null,
   upload: {
     dir: envVars.UPLOAD_DIR,
     maxSize: envVars.MAX_FILE_SIZE,

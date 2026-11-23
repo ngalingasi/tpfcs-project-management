@@ -282,6 +282,7 @@ export default function ProjectDetail() {
   const pid      = Number(id);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isGuest = user?.role === 'guest';
   const canManageSites = user?.role === 'admin' || user?.role === 'manager';
 
   const [project,      setProject]      = useState<Project | null>(null);
@@ -312,7 +313,7 @@ export default function ProjectDetail() {
       ]);
       setProject(pRes.data);
       setObjectives(oRes.data);
-      budgetApi.projectSummary(pid).then(r => setBudget(r.data)).catch(() => {});
+      if (user?.role !== 'guest') budgetApi.projectSummary(pid).then(r => setBudget(r.data)).catch(() => {});
       sitesApi.listByProject(pid).then(r => setSites(r.data)).catch(() => {});
       lookupsApi.regions().then(r => setRegions(r.data)).catch(() => {});
 
@@ -388,10 +389,10 @@ export default function ProjectDetail() {
             className="px-4 py-2 text-sm border border-brand-500 text-brand-500 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-500/10">
             Plan / Gantt
           </Link>
-          <Link to={`/projects/${pid}/edit`}
+          {!isGuest && <Link to={`/projects/${pid}/edit`}
             className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300">
             Edit Project
-          </Link>
+          </Link>}
         </div>
       </div>
 
@@ -446,10 +447,9 @@ export default function ProjectDetail() {
               { label: 'Start Date',           value: dt(project.start_date) },
               { label: 'End Date',             value: dt(project.end_date) },
               { label: 'Life Span',            value: project.project_life_span ? `${project.project_life_span} years` : null },
-              { label: 'Estimated Cost',       value: fmt(project.estimated_cost) },
+              ...(isGuest ? [] : [{ label: 'Estimated Cost',       value: fmt(project.estimated_cost) }]),
               { label: 'Fund Structure',       value: project.fund_structure },
-              { label: 'Funding Source',       value: project.funding },
-              { label: 'Cost Center',          value: project.cost_center },
+              ...(isGuest ? [] : [{ label: 'Funding Source',       value: project.funding }, { label: 'Cost Center',          value: project.cost_center }]),
               { label: 'Implementation',       value: project.implementation_modality },
               { label: 'Relevancy (FYDP)',     value: project.relevancy_fypds },
               { label: 'Jobs Created',         value: project.job_created_no },
@@ -684,13 +684,13 @@ export default function ProjectDetail() {
       {/* ── OBJECTIVES TAB ── */}
       {tab === 'objectives' && (
         <div className="space-y-3">
-          <div className="flex justify-end">
+          {!isGuest && <div className="flex justify-end">
             <button onClick={() => setModal('objective')}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Add Objective
             </button>
-          </div>
+          </div>}
           {objectives.length === 0 ? (
             <div className="text-center py-16 text-gray-400">No objectives yet. Add the first one.</div>
           ) : objectives.map(o => (
@@ -720,14 +720,14 @@ export default function ProjectDetail() {
       {/* ── TARGETS TAB ── */}
       {tab === 'targets' && (
         <div className="space-y-3">
-          <div className="flex justify-end">
+          {!isGuest && <div className="flex justify-end">
             <button onClick={() => setModal('target')} disabled={objectives.length === 0}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
               title={objectives.length === 0 ? 'Add an objective first' : ''}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Add Target
             </button>
-          </div>
+          </div>}
           {targets.length === 0 ? (
             <div className="text-center py-16 text-gray-400">No targets yet.</div>
           ) : targets.map(t => {
@@ -758,13 +758,13 @@ export default function ProjectDetail() {
                             className="font-medium text-brand-500 hover:text-brand-600 underline decoration-dotted underline-offset-2">{tActs.length}</button>
                         ) : <p className="font-medium text-gray-700 dark:text-gray-300">0</p>}
                       </div>
-                      <div>
+                      {!isGuest && <div>
                         <p className="text-gray-400">Paid</p>
                         <p className={`font-medium ${totalPaid > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
                           {totalPaid > 0 ? fmt(totalPaid) : '—'}
                         </p>
-                      </div>
-                      <div>
+                      </div>}
+                      {!isGuest && <div>
                         <p className="text-gray-400">Budget</p>
                         <div className="flex items-center gap-1.5">
                           <p className={`font-medium text-xs ${t.allocated_budget > 0 ? 'text-gray-700 dark:text-gray-300' : 'text-orange-500'}`}>
@@ -775,7 +775,7 @@ export default function ProjectDetail() {
                             {t.allocated_budget > 0 ? 'Edit' : 'Set'}
                           </button>
                         </div>
-                      </div>
+                      </div>}
                     </div>
                   );
                 })()}
@@ -789,7 +789,7 @@ export default function ProjectDetail() {
       {/* ── ACTIVITIES TAB ── */}
       {tab === 'activities' && (
         <div className="space-y-3">
-          <div className="flex justify-end">
+          {!isGuest && <div className="flex justify-end">
             <button
               onClick={() => targets.length > 0 ? navigate(`/activities/new?project_id=${pid}`) : undefined}
               disabled={targets.length === 0}
@@ -798,7 +798,7 @@ export default function ProjectDetail() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Add Activity
             </button>
-          </div>
+          </div>}
           {activities.length === 0 ? (
             <div className="text-center py-16 text-gray-400">No activities yet.</div>
           ) : activities.map(a => (
@@ -822,7 +822,7 @@ export default function ProjectDetail() {
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-2">
-                <div>
+                {!isGuest && <><div>
                   <p className="text-gray-400">Budget</p>
                   <p className="font-medium text-gray-700 dark:text-gray-300">
                     {fmt((a as any).effective_budget ?? (a as any).budgeted_amount)}
@@ -833,7 +833,7 @@ export default function ProjectDetail() {
                   <p className={`font-medium ${Number((a as any).total_paid) > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
                     {Number((a as any).total_paid) > 0 ? fmt((a as any).total_paid) : '—'}
                   </p>
-                </div>
+                </div></>}
                 <div>
                   <p className="text-gray-400">Progress</p>
                   <p className="font-medium text-gray-700 dark:text-gray-300">{a.progress}%</p>

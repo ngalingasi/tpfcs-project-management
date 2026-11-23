@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../../store/authStore';
 import { Link } from 'react-router';
 import ActivityLink from '../../components/tpfcs/ActivityLink';
 import { useActivityChanged } from '../../utils/activityEvents';
@@ -57,6 +58,8 @@ function SubActivities({ parentId }: { parentId: number }) {
 
 // ── Activity card ─────────────────────────────────────────────────────────────
 function ActivityCard({ a }: { a: Activity }) {
+  const { user } = useAuth();
+  const isGuest = user?.role === 'guest';
   const [expanded, setExpanded] = useState(false);
   const isSubActivity = !!a.main_activity_id;
   const fmt = (n: any) => (n != null && n !== '') ? `TZS ${Number(n).toLocaleString()}` : '—';
@@ -120,6 +123,7 @@ function ActivityCard({ a }: { a: Activity }) {
         </div>
 
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          {!isGuest && (<>
           <div>
             <p className="text-gray-400">Budget</p>
             <p className="font-medium text-gray-700 dark:text-gray-300">{fmt(a.effective_budget)}</p>
@@ -132,6 +136,7 @@ function ActivityCard({ a }: { a: Activity }) {
               <p className="font-medium text-gray-400">—</p>
             )}
           </div>
+          </>)}
           <div>
             <p className="text-gray-400">Progress</p>
             <p className="font-medium text-gray-700 dark:text-gray-300">{a.progress}%</p>
@@ -151,7 +156,7 @@ function ActivityCard({ a }: { a: Activity }) {
         <div className="border-t border-gray-100 dark:border-gray-800 px-4 pb-4 pt-3">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Sub-Activities</p>
           <SubActivities parentId={a.activity_id} />
-          <Link
+          {!isGuest && <Link
             to={`/activities/new?main_activity_id=${a.activity_id}&target_id=${a.target_id}`}
             className="mt-3 flex items-center gap-1.5 text-xs text-brand-500 hover:text-brand-600"
           >
@@ -159,7 +164,7 @@ function ActivityCard({ a }: { a: Activity }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Add Sub-Activity
-          </Link>
+          </Link>}
         </div>
       )}
     </div>
@@ -168,6 +173,8 @@ function ActivityCard({ a }: { a: Activity }) {
 
 // ── Main list ─────────────────────────────────────────────────────────────────
 export default function ActivityList() {
+  const { user } = useAuth();
+  const isGuest = user?.role === 'guest';
   const [data,    setData]    = useState<PaginatedResponse<Activity> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
@@ -202,13 +209,13 @@ export default function ActivityList() {
           <h1 className="text-xl font-bold text-gray-800 dark:text-white">Activities</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{data?.totalResults ?? 0} total</p>
         </div>
-        <Link to="/activities/new"
+        {!isGuest && <Link to="/activities/new"
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           New Activity
-        </Link>
+        </Link>}
       </div>
 
       {/* Filters */}

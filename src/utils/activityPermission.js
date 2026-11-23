@@ -49,6 +49,17 @@ const resolveActivityPermission = async (userId, activityId, userRole) => {
   if (!rows.length) throw new ApiError(httpStatus.NOT_FOUND, 'Activity not found');
 
   const activity   = rows[0];
+
+  // Guests: may view and comment only on activities of projects they were given access to
+  if (userRole === 'guest') {
+    const link = await query('SELECT 1 FROM guest_projects WHERE user_id = ? AND project_id = ?', [userId, activity.project_id]);
+    const ok = link.length > 0;
+    return {
+      isAdmin: false, isPM: false, isAssigned: false, activity,
+      canView: ok, canUpdateStatus: false, canCreateSubActivity: false, canUploadDocument: false, canComment: ok,
+    };
+  }
+
   const isAdmin    = userRole === 'admin';
   const isPM       = !isAdmin && Number(activity.project_manager_id) === Number(userId);
   const isAssigned = !isAdmin && !isPM && Number(activity.assigned_user_id) === Number(userId);

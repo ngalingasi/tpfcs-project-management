@@ -5,6 +5,8 @@ import Modal from '../../components/tpfcs/Modal';
 import { FormInput, FormSelect } from '../../components/tpfcs/FormField';
 import { useAuth } from '../../store/authStore';
 import { toast } from '../../components/tpfcs/Toast';
+import CredentialsDialog from '../../components/tpfcs/CredentialsDialog';
+import { Link } from 'react-router';
 
 // ─── All sub-components defined OUTSIDE to prevent remount → focus loss ───────
 
@@ -26,6 +28,7 @@ const ROLE_STYLES: Record<string, string> = {
   admin:   'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
   manager: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
   user:    'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+  guest:   'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
 };
 
 const SKILL_CATEGORIES = ['Technical','Managerial','Field','Finance','IT','Legal'];
@@ -65,11 +68,12 @@ function SkillPicker({ allSkills, selected, onChange }: {
   );
 }
 
-function UserForm({ user, allSkills, onSaved, onClose }: {
+function UserForm({ user, allSkills, onSaved, onClose, onCreated }: {
   user?: UserRecord & { skills?: Skill[] };
   allSkills: Skill[];
   onSaved: () => void;
   onClose: () => void;
+  onCreated?: (c: { username: string; password: string }) => void;
 }) {
   const isEdit = !!user;
   const [form, setForm] = useState({
@@ -93,7 +97,6 @@ function UserForm({ user, allSkills, onSaved, onClose }: {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.full_name.trim() || !form.username.trim()) { setError('Full name and username are required'); return; }
-    if (!isEdit && !form.password.trim()) { setError('Password is required for new users'); return; }
     setSaving(true); setError('');
     try {
       let userId = user?.user_id;
@@ -101,8 +104,10 @@ function UserForm({ user, allSkills, onSaved, onClose }: {
         const payload: any = { full_name: form.full_name, email: form.email, mobile: form.mobile, gender: form.gender, role: form.role, status: form.status };
         await usersApi.update(user!.user_id, payload);
       } else {
-        const res = await usersApi.create({ ...form });
+        const { password, ...rest } = form;
+        const res = await usersApi.create({ ...rest, ...(password.trim() ? { password } : {}) });
         userId = res.data.user_id;
+        if ((res.data as any).temporary_password) onCreated?.({ username: form.username, password: (res.data as any).temporary_password });
       }
       // Always update skills
       if (userId) {
@@ -151,7 +156,7 @@ function UserForm({ user, allSkills, onSaved, onClose }: {
       </div>
 
       {!isEdit && (
-        <FormInput label="Password" required type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Temporary password (min 8 chars)" />
+        <FormInput label="Password" type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Leave blank to use the default password" />
       )}
 
       {allSkills.length > 0 && (
@@ -175,35 +180,39 @@ function UserForm({ user, allSkills, onSaved, onClose }: {
 
 function ResetPasswordForm({ user, onClose }: { user: UserRecord; onClose: () => void }) {
   const [saving, setSaving] = useState(false);
-  const [done,   setDone]   = useState(false);
+  const [result, setResult] = useState<{ password: string; is_default: boolean } | null>(null);
 
   const handleReset = async () => {
     setSaving(true);
     try {
-      await usersApi.update(user.user_id, { must_change_password: 1 } as any);
-      setDone(true);
+      const res = await usersApi.resetPassword(user.user_id);
+      setResult(res.data);
+    } catch (err: any) {
+      toast.error('Reset failed', err?.response?.data?.message ?? 'Could not reset the password');
     } finally { setSaving(false); }
   };
 
-  if (done) return (
-    <div className="text-center py-4 space-y-3">
-      <div className="w-12 h-12 bg-green-100 dark:bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
-        <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-      </div>
-      <p className="text-sm text-gray-600 dark:text-gray-400">User will be prompted to change password on next login.</p>
-      <button onClick={onClose} className="px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">Close</button>
-    </div>
+  if (result) return (
+    <CredentialsDialog
+      open
+      onClose={onClose}
+      title="Password reset"
+      username={user.username}
+      password={result.password}
+      note={result.is_default ? 'This is the default password. They are signed out everywhere and must change it at next login.' : 'No default password is configured, so a random one was generated. They are signed out everywhere and must change it at next login.'}
+    />
   );
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500 dark:text-gray-400">
-        This will flag <strong className="text-gray-700 dark:text-gray-300">{user.full_name}</strong> to change their password on next login.
+        This sets a new temporary password for <strong className="text-gray-700 dark:text-gray-300">{user.full_name}</strong> (the default password when one is configured),
+        signs them out of every device, and makes them choose their own password at next login.
       </p>
       <div className="flex justify-end gap-3">
         <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-600">Cancel</button>
         <button onClick={handleReset} disabled={saving} className="px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50">
-          {saving ? 'Processing...' : 'Force Password Reset'}
+          {saving ? 'Resetting...' : 'Reset Password'}
         </button>
       </div>
     </div>
@@ -220,6 +229,7 @@ export default function UsersPage() {
   const [roleFilter,setRoleFilter]= useState('');
   const [page,      setPage]     = useState(1);
   const [modal,     setModal]    = useState<'create' | 'edit' | 'delete' | 'reset' | null>(null);
+  const [created,   setCreated]  = useState<{ username: string; password: string } | null>(null);
   const [selected,  setSelected] = useState<(UserRecord & { skills?: Skill[] }) | null>(null);
   const [deleting,  setDeleting] = useState(false);
 
@@ -333,10 +343,16 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => { setSelected(u as any); setModal('edit'); }}
-                        className="px-2.5 py-1 text-xs text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-md">Edit</button>
-                      <button onClick={() => { setSelected(u as any); setModal('reset'); }}
-                        className="px-2.5 py-1 text-xs text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 rounded-md">Reset PW</button>
+                      {u.role === 'guest' ? (
+                        <Link to="/guests" className="px-2.5 py-1 text-xs text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-md">Manage in Guests</Link>
+                      ) : (
+                        <button onClick={() => { setSelected(u as any); setModal('edit'); }}
+                          className="px-2.5 py-1 text-xs text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-md">Edit</button>
+                      )}
+                      {me?.user_id !== u.user_id && (
+                        <button onClick={() => { setSelected(u as any); setModal('reset'); }}
+                          className="px-2.5 py-1 text-xs text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 rounded-md">Reset PW</button>
+                      )}
                       {me?.user_id !== u.user_id && (
                         <button onClick={() => { setSelected(u as any); setModal('delete'); }}
                           className="px-2.5 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md">Delete</button>
@@ -363,7 +379,7 @@ export default function UsersPage() {
       </div>
 
       <Modal isOpen={modal === 'create'} onClose={() => setModal(null)} title="Create New User" size="md">
-        <UserForm allSkills={allSkills} onSaved={load} onClose={() => setModal(null)} />
+        <UserForm allSkills={allSkills} onSaved={load} onClose={() => setModal(null)} onCreated={setCreated} />
       </Modal>
 
       <Modal isOpen={modal === 'edit' && !!selected} onClose={() => setModal(null)} title="Edit User" size="md">
@@ -387,6 +403,14 @@ export default function UsersPage() {
           </div>
         </div>
       </Modal>
+      <CredentialsDialog
+        open={!!created}
+        onClose={() => setCreated(null)}
+        title="User created"
+        username={created?.username}
+        password={created?.password ?? ''}
+        note="They must change this password the first time they sign in."
+      />
     </div>
   );
 }

@@ -48,6 +48,7 @@ export default function ActivityDetailView({
   activityId, mode, siteId = null, backTo = '/activities', returnTo, onDeleted, onOpenActivity,
 }: ActivityDetailViewProps) {
   const { user } = useAuth();
+  const isGuest = user?.role === 'guest';
   const aid      = activityId;
   const siteFilterId = siteId;
   const [objectiveSites, setObjectiveSites] = useState<ProjectSite[]>([]);
@@ -108,7 +109,7 @@ export default function ActivityDetailView({
       const a = aRes.data as any;
       setActivity(a);
       activitiesApi.getHistory(aid).then(r => setHistory(r.data)).catch(() => {});
-      budgetApi.listRevisions({ activity_id: aid })
+      if (!isGuest) budgetApi.listRevisions({ activity_id: aid })
         .then(r => setRevisions(r.data)).catch(() => {});
       activitiesApi.getSubActivities(aid)
         .then(r => setSubActivities(r.data)).catch(() => {});
@@ -117,10 +118,10 @@ export default function ActivityDetailView({
       // Always fetch the full set — the site filter dropdowns in each tab
       // narrow what's displayed client-side, so switching between "All
       // sites" and a specific one is instant with no refetch.
-      activitiesApi.getPayments(aid)
-        .then(r => setPayments(r.data)).catch(() => {});
-      activitiesApi.getPaymentSummary(aid)
-        .then(r => setPaySummary(r.data)).catch(() => {});
+      if (!isGuest) {
+        activitiesApi.getPayments(aid).then(r => setPayments(r.data)).catch(() => {});
+        activitiesApi.getPaymentSummary(aid).then(r => setPaySummary(r.data)).catch(() => {});
+      }
       activitiesApi.getDocuments(aid, 'document')
         .then(r => setDocuments(r.data)).catch(() => {});
       activitiesApi.getDocuments(aid, 'picture')
@@ -380,6 +381,7 @@ export default function ActivityDetailView({
             <p className="text-xs text-gray-400 mb-0.5">Progress</p>
             <p className="font-bold text-2xl text-brand-600 dark:text-brand-400">{activity.progress}%</p>
           </div>
+          {!isGuest && <>
           <div>
             <p className="text-xs text-gray-400 mb-0.5">Budget</p>
             <p className="font-semibold text-gray-800 dark:text-white">
@@ -403,6 +405,7 @@ export default function ActivityDetailView({
               return <p className={`font-semibold ${rem < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-white'}`}>{fmt(rem)}</p>;
             })()}
           </div>
+          </>}
           <div>
             <p className="text-xs text-gray-400 mb-0.5">Start</p>
             <p className="font-medium text-gray-700 dark:text-gray-300">{dt(activity.start_date)}</p>
@@ -426,7 +429,7 @@ export default function ActivityDetailView({
           { key: 'comments',  label: `Comments (${comments.length})` },
           { key: 'budget',    label: `Budget (${revisions.length} revisions)` },
           { key: 'payments',  label: `Payments (${payments.length})` },
-        ].map(t => (
+        ].filter(t => !(isGuest && (t.key === 'budget' || t.key === 'payments'))).map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === t.key
@@ -447,8 +450,10 @@ export default function ActivityDetailView({
             { label: 'Road',            value: activity.road_name },
             { label: 'Assigned To',     value: activity.assigned_user_name },
             { label: 'Supervisor',      value: activity.supervisor_name },
-            { label: 'Budgeted',        value: fmt(activity.budgeted_amount ?? (activity as any).budgeted_amount) },
-            { label: 'Revised Budget',  value: activity.revised_amount ? fmt(activity.revised_amount) : null },
+            ...(isGuest ? [] : [
+              { label: 'Budgeted',        value: fmt(activity.budgeted_amount ?? (activity as any).budgeted_amount) },
+              { label: 'Revised Budget',  value: activity.revised_amount ? fmt(activity.revised_amount) : null },
+            ]),
             { label: 'Coordinates',     value: activity.latitude && activity.longitude ? `${activity.latitude}, ${activity.longitude}` : null },
           ].filter(i => i.value).map(i => (
             <div key={i.label} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
@@ -543,7 +548,7 @@ export default function ActivityDetailView({
       {tab === 'sub' && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <Link
+            {!isGuest && <Link
               to={`/activities/new?main_activity_id=${aid}&target_id=${activity.target_id}`}
               state={{ from: returnTo }}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600"
@@ -552,7 +557,7 @@ export default function ActivityDetailView({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Add Sub-Activity
-            </Link>
+            </Link>}
           </div>
           {subActivities.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-sm">No sub-activities yet</div>
@@ -568,7 +573,7 @@ export default function ActivityDetailView({
                   : <button type="button" onClick={() => onOpenActivity(s.activity_id)} className="text-xs text-brand-500 hover:text-brand-600">View →</button>}
               </div>
               <div className="grid grid-cols-3 gap-3 text-xs mb-2">
-                <div><p className="text-gray-400">Budget</p><p className="font-medium text-gray-700 dark:text-gray-300">TZS {Number(s.effective_budget).toLocaleString()}</p></div>
+                {!isGuest && <div><p className="text-gray-400">Budget</p><p className="font-medium text-gray-700 dark:text-gray-300">TZS {Number(s.effective_budget).toLocaleString()}</p></div>}
                 <div><p className="text-gray-400">Progress</p><p className="font-medium text-gray-700 dark:text-gray-300">{s.progress}%</p></div>
                 <div><p className="text-gray-400">Status</p><p className="font-medium text-gray-700 dark:text-gray-300 capitalize">{s.status.replace('_',' ')}</p></div>
               </div>
@@ -667,11 +672,11 @@ export default function ActivityDetailView({
                 </select>
               </div>
             ) : <span />}
-            <button onClick={() => openUploadModal('document')}
+            {!isGuest && <button onClick={() => openUploadModal('document')}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Upload Document
-            </button>
+            </button>}
           </div>
 
           {filteredDocuments.length === 0 ? (
@@ -763,11 +768,11 @@ export default function ActivityDetailView({
                 </select>
               </div>
             ) : <span />}
-            <button onClick={() => openUploadModal('picture')}
+            {!isGuest && <button onClick={() => openUploadModal('picture')}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Upload Picture
-            </button>
+            </button>}
           </div>
 
           {filteredPictures.length === 0 ? (

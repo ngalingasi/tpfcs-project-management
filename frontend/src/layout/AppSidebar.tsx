@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
+import { useAuth } from "../store/authStore";
 
 const Icon = {
   Dashboard: () => <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
@@ -48,11 +49,23 @@ const NAV: NavItem[] = [
     { name: "Companies",   path: "/logistics/companies" },
   ]},
   { name: "Users",      icon: <Icon.Users />,      path: "/users" },
+  { name: "Guests",     icon: <Icon.Users />,      path: "/guests" },
   { name: "Lookups",    icon: <Icon.Lookups />,    path: "/lookups" },
   { name: "Profile",    icon: <Icon.Profile />,    path: "/profile" },
 ];
 
+// Guests only get the project views; the Guests page is for admins
+const GUEST_NAV = ["Projects", "Activities", "Profile"];
+
 export default function AppSidebar() {
+  const { user } = useAuth();
+  const nav: NavItem[] = useMemo(() => {
+    if (user?.role === "guest") {
+      return NAV.filter(i => GUEST_NAV.includes(i.name)).map(i =>
+        i.name === "Projects" ? { ...i, subItems: [{ name: "All Projects", path: "/projects" }] } : i);
+    }
+    return NAV.filter(i => i.name !== "Guests" || user?.role === "admin");
+  }, [user?.role]);
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -65,7 +78,7 @@ export default function AppSidebar() {
     setOpenItems(p => p.includes(name) ? p.filter(n => n !== name) : [...p, name]);
 
   useEffect(() => {
-    NAV.forEach(item => {
+    nav.forEach(item => {
       if (item.subItems && isGroupActive(item) && !openItems.includes(item.name))
         setOpenItems(p => [...p, item.name]);
     });
@@ -103,7 +116,7 @@ export default function AppSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
-        {NAV.map(item => (
+        {nav.map(item => (
           <div key={item.name}>
             {item.path ? (
               <Link to={item.path} title={!show ? item.name : undefined} className={linkCls(isActive(item.path))}>

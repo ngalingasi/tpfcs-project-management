@@ -69,12 +69,17 @@ const createActivity = async (body, creatorId) => {
 /**
  * Get paginated activities with optional filters
  */
-const getActivities = async ({ page, limit, project_id, target_id, region_id, status, assigned_user_id, project_manager_id }) => {
+const getActivities = async ({ page, limit, project_ids, project_id, target_id, region_id, status, assigned_user_id, project_manager_id }) => {
   const { limit: l, offset, paginate } = buildPagination(page, limit);
 
   let where = '1=1';
   const params = [];
 
+  if (Array.isArray(project_ids)) {
+    if (!project_ids.length) return { results: [], ...paginate(0) };
+    where += ` AND ob.project_id IN (${project_ids.map(() => '?').join(',')})`;
+    params.push(...project_ids);
+  }
   if (project_id)       { where += ' AND ob.project_id = ?';      params.push(parseInt(project_id, 10)); }
   if (target_id)        { where += ' AND a.target_id = ?';        params.push(parseInt(target_id, 10)); }
   if (region_id)        { where += ' AND a.region_id = ?';        params.push(parseInt(region_id, 10)); }

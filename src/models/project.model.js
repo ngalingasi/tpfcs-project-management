@@ -134,10 +134,16 @@ const createProject = async (body, creatorId) => {
   });
 };
 
-const getProjects = async ({ page, limit, sector_id, search }) => {
+const getProjects = async ({ page, limit, sector_id, search, project_ids }) => {
   const { limit: l, offset, paginate } = buildPagination(page, limit);
   let where = '1=1';
   const params = [];
+  if (Array.isArray(project_ids)) {
+    // guests: only the projects they were given (an empty list means none)
+    if (!project_ids.length) return { results: [], ...paginate(0) };
+    where += ` AND p.project_id IN (${project_ids.map(() => '?').join(',')})`;
+    params.push(...project_ids);
+  }
   if (sector_id) { where += ' AND p.sector_id = ?'; params.push(parseInt(sector_id, 10)); }
   if (search) {
     where += ' AND (p.name LIKE ? OR p.programme_name LIKE ?)';

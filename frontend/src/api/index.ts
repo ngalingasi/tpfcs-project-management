@@ -1,7 +1,7 @@
 import client from './client';
 import type {
   Objective, Target, Activity, BudgetRevision,
-  Document, UserRecord, Sector, Region, Implementer,
+  Document, UserRecord, GuestRecord, Sector, Region, Implementer,
   PaginatedResponse, ProjectBudgetSummary, TargetBudgetSummary, ProjectSite,
 } from '../types';
 
@@ -170,7 +170,17 @@ export const documentsApi = {
 
 
 // ── Users ─────────────────────────────────────────────────────────────────────
+export const guestsApi = {
+  list: () => client.get<GuestRecord[]>('/guests'),
+  create: (data: { full_name: string; username: string; email?: string; mobile?: string; organisation?: string; password?: string; guest_expires_at?: string | null; project_ids: number[] }) =>
+    client.post<GuestRecord>('/guests', data),
+  update: (id: number, data: Partial<{ full_name: string; email: string; mobile: string; organisation: string; status: 'active' | 'inactive'; guest_expires_at: string | null; project_ids: number[] }>) =>
+    client.patch<GuestRecord>(`/guests/${id}`, data),
+};
+
 export const usersApi = {
+  resetPassword: (id: number) =>
+    client.post<{ password: string; is_default: boolean }>(`/users/${id}/reset-password`),
   list: (params?: { page?: number; limit?: number; role?: string; status?: string; search?: string }) =>
     client.get<PaginatedResponse<UserRecord>>('/users', { params }),
   get: (id: number) =>

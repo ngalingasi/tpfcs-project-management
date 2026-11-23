@@ -6,6 +6,10 @@ import { useAuth } from '../../store/authStore';
 const IS_PROD    = import.meta.env.VITE_IS_PRODUCTION === 'true';
 const ERP_PORTAL = 'https://erp.tpfcs.co.tz';
 
+// Guests may only browse project/activity pages. Pages that edit things (or show budgets) are not reachable.
+const GUEST_OK = /^\/(projects|activities|profile|change-password)(\/|$)/;
+const GUEST_BLOCKED = /^\/(projects\/new|projects\/\d+\/(edit|overview)|activities\/new|activities\/\d+\/edit)(\/|$)/;
+
 interface Props {
   allowedRoles?: string[];
 }
@@ -36,6 +40,12 @@ export default function ProtectedRoute({ allowedRoles }: Props) {
     //   return null;
     // }
     return <Navigate to="/signin" state={{ from: location }} replace />;
+  }
+
+  // Guests are kept inside the read-only project views
+  if (user?.role === 'guest') {
+    const path = location.pathname;
+    if (!GUEST_OK.test(path) || GUEST_BLOCKED.test(path)) return <Navigate to="/projects" replace />;
   }
 
   // Role check

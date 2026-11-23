@@ -21,6 +21,9 @@ const loginUser = async (login, password) => {
   if (!isMatch) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect credentials');
   }
+  if (user.role === 'guest' && user.guest_expires_at && new Date(user.guest_expires_at) < new Date(new Date().toDateString())) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Your guest access has expired. Please contact the administrator.');
+  }
   return user;
 };
 

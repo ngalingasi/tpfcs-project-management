@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../../store/authStore';
 import { Link, useNavigate } from 'react-router';
 import PageBreadCrumb from '../../components/common/PageBreadCrumb';
 import { projectsApi } from '../../api';
@@ -6,6 +7,8 @@ import type { Project, PaginatedResponse } from '../../types';
 import PlanImportModal from '../../components/tpfcs/PlanImportModal';
 
 export default function ProjectList() {
+  const { user } = useAuth();
+  const isGuest = user?.role === 'guest';
   const [data,    setData]    = useState<PaginatedResponse<Project> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
@@ -43,6 +46,7 @@ export default function ProjectList() {
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="w-full sm:w-72 rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white focus:outline-none focus:border-brand-400"
         />
+        {!isGuest && (
         <div className="flex items-center gap-2">
         <button
           type="button"
@@ -61,6 +65,7 @@ export default function ProjectList() {
           New Project
         </Link>
         </div>
+        )}
       </div>
 
       {error && <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm dark:bg-red-500/10 dark:text-red-400">{error}</div>}
@@ -70,7 +75,7 @@ export default function ProjectList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                {['Project Name', 'Sector', 'Manager', 'Est. Cost', 'Period', 'Actions'].map((h) => (
+                {['Project Name', 'Sector', 'Manager', 'Est. Cost', 'Period', 'Actions'].filter(h => !(isGuest && h === 'Est. Cost')).map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-400">{h}</th>
                 ))}
               </tr>
@@ -103,7 +108,7 @@ export default function ProjectList() {
                     </td>
                     <td className="px-4 py-4 text-gray-600 dark:text-gray-400">{p.sector_name ?? '—'}</td>
                     <td className="px-4 py-4 text-gray-600 dark:text-gray-400">{p.project_manager_name ?? '—'}</td>
-                    <td className="px-4 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">{fmt(p.estimated_cost)}</td>
+                    {!isGuest && <td className="px-4 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">{fmt(p.estimated_cost)}</td>}
                     <td className="px-4 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">
                       {p.start_date ? new Date(p.start_date).getFullYear() : '—'}
                       {p.end_date ? ` – ${new Date(p.end_date).getFullYear()}` : ''}

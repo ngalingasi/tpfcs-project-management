@@ -7,9 +7,11 @@ export interface User {
   mobile?: string;
   gender?: string;
   avatar?: string | null;
-  role: 'admin' | 'manager' | 'user';
+  role: 'admin' | 'manager' | 'user' | 'guest';
   status: 'active' | 'inactive';
   must_change_password: number;
+  organisation?: string | null;
+  guest_expires_at?: string | null;
 }
 
 export interface TokenPair {
@@ -339,6 +341,23 @@ export interface UserRecord {
   status: string;
   must_change_password: number;
   created_at: string;
+  organisation?: string | null;
+  guest_expires_at?: string | null;
+}
+
+export interface GuestRecord {
+  user_id: number;
+  full_name: string;
+  username: string;
+  email?: string | null;
+  mobile?: string | null;
+  organisation?: string | null;
+  status: 'active' | 'inactive';
+  must_change_password: number;
+  guest_expires_at?: string | null;
+  created_at: string;
+  projects: { project_id: number; name: string }[];
+  temporary_password?: string;
 }
 
 // ── API Error ─────────────────────────────────────────────────────────────────

@@ -6,6 +6,12 @@ const allRoles = {
     'getInventory',    // viewer
     'getInspection',   // read only
   ],
+  // Guests are external viewers: read-only (plus comments). Which projects they can see is enforced by
+  // middlewares/guestGuard.js, which allows only an explicit list of routes. Budget/payment data is never sent.
+  guest: [
+    'getProjects',
+    'getActivities',
+  ],
   manager: [
     'getProjects',   'manageProjects',
     'getActivities', 'manageActivities', 'updateActivity',
