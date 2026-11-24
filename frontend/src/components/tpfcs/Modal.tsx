@@ -6,7 +6,7 @@ interface Props {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 }
 
 const SIZE_CLS = {
@@ -14,6 +14,8 @@ const SIZE_CLS = {
   md: 'max-w-lg',
   lg: 'max-w-2xl',
   xl: 'max-w-4xl',
+  // almost the whole screen, no body padding (maps, big tables)
+  full: 'max-w-[96vw] h-[calc(100vh-3rem)]',
 };
 
 // Several modals can be open at once (e.g. "Update status" on top of the activity viewer).
@@ -88,7 +90,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
           border border-gray-200 dark:border-gray-700
           flex flex-col
           max-h-[calc(100vh-4rem)]
-          mt-8
+          ${size === 'full' ? 'mt-2' : 'mt-8'}
         `}
       >
         {/* Header */}
@@ -105,7 +107,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
         </div>
 
         {/* Body — scrollable */}
-        <div className="overflow-y-auto flex-1 px-6 py-5">
+        <div className={size === 'full' ? 'flex-1 min-h-0 overflow-hidden' : 'overflow-y-auto flex-1 px-6 py-5'}>
           {children}
         </div>
       </div>

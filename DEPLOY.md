@@ -37,6 +37,29 @@ mysql -u root -p tpfcs_projects < database/migrations/006_project_financing.sql
 mysql -u root -p tpfcs_projects < database/seeds/skills_seeder.sql
 ```
 
+### 1b. Map points (migration 025)
+
+Run on every environment (live and development):
+
+```bash
+mysql -u root -p tpfcs_projects < database/migrations/025_geo_points.sql
+# make sure all regions exist (safe to re-run)
+mysql -u root -p tpfcs_projects < database/seeds/tanzania_regions_seeder.sql
+```
+
+Load the CSMIS sample points into a project (once per project; safe to re-run, points are matched on `global_id`):
+
+```bash
+node scripts/seed-geo.js --project=<PROJECT_ID>            # dry run, shows what would be created
+node scripts/seed-geo.js --project=<PROJECT_ID> --apply    # writes; also adds Dar es Salaam, Dodoma, Arusha to the project
+```
+
+`database/seeds/geo_points_seed.csv` is the cleaned data (8,634 points) and `geo_cleaning_report.txt` lists every spelling fix.
+`node scripts/build-geo-seed.js <dump.sql>` rebuilds both from the original CSMIS dump.
+
+The map needs a Google Maps key in the **frontend** build: copy `.env.example` to `.env.production`, set
+`VITE_GOOGLE_MAPS_API_KEY`, then `npm run build:prod`. Restrict the key to the site's domain in Google Cloud.
+
 ### 2. Install dependencies
 
 ```bash

@@ -9,13 +9,14 @@ import { useAuth } from '../../store/authStore';
 import StatusBadge from '../../components/tpfcs/StatusBadge';
 import BudgetBar from '../../components/tpfcs/BudgetBar';
 import BulletList from '../../components/tpfcs/BulletList';
+import ProjectMapPanel from '../../components/tpfcs/geo/ProjectMapPanel';
 import ProjectDocumentsPanel from '../../components/tpfcs/ProjectDocumentsPanel';
 import Modal from '../../components/tpfcs/Modal';
 import { FormInput, FormSelect, FormTextArea } from '../../components/tpfcs/FormField';
 import RichTextEditor from '../../components/tpfcs/RichTextEditor';
 import RichTextDisplay from '../../components/tpfcs/RichTextDisplay';
 
-type Tab = 'sites' | 'details' | 'objectives' | 'targets' | 'activities' | 'documents';
+type Tab = 'sites' | 'details' | 'objectives' | 'targets' | 'activities' | 'documents' | 'map';
 
 // ── Objective Form ────────────────────────────────────────────────────────────
 function ObjectiveForm({ projectId, onSaved, onClose }: { projectId: number; onSaved: () => void; onClose: () => void }) {
@@ -295,7 +296,7 @@ export default function ProjectDetail() {
   const [loading,      setLoading]      = useState(true);
   // The active tab lives in the URL (?tab=activities) so coming back from an activity restores it.
   const [searchParams, setSearchParams] = useSearchParams();
-  const TAB_KEYS: Tab[] = ['sites', 'details', 'objectives', 'targets', 'activities', 'documents'];
+  const TAB_KEYS: Tab[] = ['sites', 'details', 'objectives', 'targets', 'activities', 'documents', 'map'];
   const tabParam = searchParams.get('tab') as Tab | null;
   const tab: Tab = tabParam && TAB_KEYS.includes(tabParam) ? tabParam : 'details';
   const setTab = (t: Tab) => setSearchParams(t === 'details' ? {} : { tab: t }, { replace: true });
@@ -357,6 +358,7 @@ export default function ProjectDetail() {
     { key: 'targets',    label: 'Targets',    count: targets.length },
     { key: 'activities', label: 'Activities', count: activities.length },
     { key: 'documents',  label: 'Documents' },
+    { key: 'map',        label: 'Map' },
   ];
 
 
@@ -852,6 +854,12 @@ export default function ProjectDetail() {
       {/* ── DOCUMENTS TAB ── */}
       {tab === 'documents' && (
         <ProjectDocumentsPanel projectId={pid} projectManagerId={project?.project_manager_id} sites={sites} />
+      )}
+
+      {/* ── MAP TAB ── */}
+      {tab === 'map' && (
+        <ProjectMapPanel projectId={pid} projectName={project?.name}
+          canManage={user?.role === 'admin' || (project?.project_manager_id != null && Number(project.project_manager_id) === Number(user?.user_id))} />
       )}
 
       <TargetActivitiesModal target={activitiesOfTarget} activities={activities} onClose={() => setActivitiesOfTarget(null)} />

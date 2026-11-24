@@ -8,6 +8,7 @@ const objectiveController = require('../../controllers/objective.controller');
 const documentController = require('../../controllers/document.controller');
 const siteController = require('../../controllers/site.controller');
 const planController = require('../../controllers/plan.controller');
+const geoController = require('../../controllers/geo.controller');
 const upload = require('../../middlewares/upload');
 const multer = require('multer');
 const httpStatus = require('http-status');
@@ -128,6 +129,26 @@ router.post('/:projectId/plan/import', auth('manageProjects'), planUpload.single
 router.get('/:projectId/plan', auth('getProjects'), planController.getPlan);
 router.get('/:projectId/plan/export.xlsx', auth('getProjects'), planController.exportExcel);
 router.get('/:projectId/plan/export.pdf', auth('getProjects'), planController.exportPdf);
+
+// Map points. Reading follows project visibility; changing is limited to admin / the project's manager (checked in the controller).
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(csv|txt)$/i.test(file.originalname);
+    cb(ok ? null : new ApiError(httpStatus.BAD_REQUEST, 'Only .csv files are accepted for map points'), ok);
+  },
+});
+router.get('/geo/template.csv', auth('getProjects'), geoController.template);
+router.get('/:projectId/geo/summary', auth('getProjects'), geoController.summary);
+router.get('/:projectId/geo/map', auth('getProjects'), geoController.map);
+router.get('/:projectId/geo/points', auth('getProjects'), geoController.list);
+router.get('/:projectId/geo/export.csv', auth('getProjects'), geoController.exportCsv);
+router.post('/:projectId/geo/import', auth('getProjects'), csvUpload.single('file'), geoController.importCsv);
+router.post('/:projectId/geo/points/delete', auth('getProjects'), geoController.removeMany);
+router.get('/:projectId/geo/points/:pointId', auth('getProjects'), geoController.get);
+router.patch('/:projectId/geo/points/:pointId', auth('getProjects'), geoController.update);
+router.delete('/:projectId/geo/points/:pointId', auth('getProjects'), geoController.remove);
 
 router.route('/')
   .post(auth('manageProjects'), validate(projectSchema), projectController.createProject)

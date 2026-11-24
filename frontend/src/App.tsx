@@ -38,6 +38,7 @@ import ProjectDetail      from "./pages/Projects/ProjectDetail";
 import ProjectOverview    from "./pages/Projects/ProjectOverview";
 import ProjectForm        from "./pages/Projects/ProjectForm";
 import ProjectPlan        from "./pages/Projects/ProjectPlan";
+import ProjectMap         from "./pages/Projects/ProjectMap";
 
 // Activities
 import ActivityList       from "./pages/Activities/ActivityList";
@@ -112,6 +113,7 @@ export default function App() {
               <Route path="/projects/new"              element={<ProjectForm />} />
               <Route path="/projects/:id"              element={<ProjectDetail />} />
               <Route path="/projects/:id/plan"         element={<ProjectPlan />} />
+              <Route path="/projects/:id/map"          element={<ProjectMap />} />
               <Route path="/projects/:id/overview"     element={<ProjectOverview />} />
               <Route path="/projects/:id/edit"         element={<ProjectForm />} />
 
