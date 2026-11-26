@@ -23,6 +23,7 @@ export interface GeoPoint {
 export interface GeoFilters {
   layer_ids?: string; region_id?: number | ''; district_id?: number | ''; council_id?: number | '';
   ward_id?: number | ''; q?: string; page?: number; limit?: number;
+  sort?: string; dir?: 'asc' | 'desc';
 }
 export interface GeoImportIssue { line: number; message: string }
 export interface GeoImportResult {

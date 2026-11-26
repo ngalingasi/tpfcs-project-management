@@ -5,6 +5,7 @@ import type { GeoPin, GeoSummary } from '../../../api/geo';
 import Modal from '../Modal';
 import GeoMap from './GeoMap';
 import GeoExplorer from './GeoExplorer';
+import GeoTableModal from './GeoTableModal';
 
 interface Props { projectId: number; projectName?: string; canManage: boolean }
 
@@ -13,6 +14,8 @@ export default function ProjectMapPanel({ projectId, projectName, canManage }: P
   const [summary, setSummary] = useState<GeoSummary | null>(null);
   const [pins, setPins] = useState<GeoPin[]>([]);
   const [big, setBig] = useState(false);
+  const [table, setTable] = useState(false);
+  const [openPoint, setOpenPoint] = useState<number | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -35,7 +38,8 @@ export default function ProjectMapPanel({ projectId, projectName, canManage }: P
           ))}
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => setBig(true)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Open big map</button>
+          <button type="button" onClick={() => setTable(true)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Coordinates list</button>
+          <button type="button" onClick={() => { setOpenPoint(null); setBig(true); }} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Open big map</button>
           <Link to={`/projects/${projectId}/map`} className="px-3 py-2 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600">Open full page</Link>
         </div>
       </div>
@@ -53,8 +57,11 @@ export default function ProjectMapPanel({ projectId, projectName, canManage }: P
       )}
 
       <Modal isOpen={big} onClose={() => setBig(false)} title={`Map${projectName ? ` · ${projectName}` : ''}`} size="full">
-        {big && <GeoExplorer projectId={projectId} canManage={canManage} />}
+        {big && <GeoExplorer projectId={projectId} canManage={canManage} openPointId={openPoint} />}
       </Modal>
+
+      <GeoTableModal isOpen={table} onClose={() => setTable(false)} projectId={projectId} projectName={projectName} canExport={canManage}
+        onShowOnMap={(id) => { setTable(false); setOpenPoint(id); setBig(true); }} />
     </div>
   );
 }

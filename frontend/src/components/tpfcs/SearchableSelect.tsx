@@ -16,13 +16,15 @@ interface Props {
   required?: boolean;
   error?: string;
   className?: string;
+  ariaLabel?: string;     // accessible name of the control (use when there is no visible label)
+  compact?: boolean;      // smaller control, for filter bars
 }
 
 // A simple, dependency-free searchable dropdown (combobox).
 // Click to open, type to filter the option list, click an option to select it.
 export default function SearchableSelect({
   options, value, onChange, placeholder = 'Select...', allLabel = 'All', allowClear = true,
-  label, required, error, className = '',
+  label, required, error, className = '', ariaLabel, compact = false,
 }: Props) {
   const [open, setOpen]   = useState(false);
   const [search, setSearch] = useState('');
@@ -53,6 +55,15 @@ export default function SearchableSelect({
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }          // close the list, not the dialog around it
+    else if (e.key === 'Enter') {                                              // type, press Enter: pick the first match
+      e.preventDefault();
+      if (search.trim() && filtered.length) select(filtered[0].value);
+      else if (!search.trim() && allowClear) select('');
+    }
+  };
+
   const select = (v: string) => {
     onChange(v);
     setOpen(false);
@@ -68,11 +79,14 @@ export default function SearchableSelect({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className={`w-full flex items-center justify-between gap-2 rounded-lg border bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-left text-gray-700 dark:text-gray-300 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400/20 ${
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`w-full flex items-center justify-between gap-2 rounded-lg border bg-white dark:bg-gray-800 px-3 ${compact ? 'py-1.5' : 'py-2.5'} text-sm text-left text-gray-700 dark:text-gray-300 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400/20 ${
           error ? 'border-red-400' : 'border-gray-300 dark:border-gray-700'
         }`}
       >
-        <span className={selected ? '' : 'text-gray-400'}>{selected ? selected.label : placeholder}</span>
+        <span className={`truncate ${selected ? '' : 'text-gray-400'}`}>{selected ? selected.label : placeholder}</span>
         <svg className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -80,13 +94,14 @@ export default function SearchableSelect({
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+        <div className="absolute z-20 mt-1 w-full min-w-[12rem] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
           <div className="p-2 border-b border-gray-100 dark:border-gray-700">
             <input
               ref={inputRef}
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
+              onKeyDown={onSearchKey}
               placeholder="Search..."
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400/20"
             />

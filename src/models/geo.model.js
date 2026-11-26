@@ -74,13 +74,23 @@ const getMapPoints = async (projectId, filters) => {
   return { truncated, points: rows.slice(0, MAP_LIMIT).map((x) => [x.point_id, x.layer_id, Number(x.latitude), Number(x.longitude)]) };
 };
 
+// Columns the table may be sorted by. Numbers such as "02" and "10" sort as numbers, text after them as text.
+const SORTS = {
+  id: 'p.point_id', layer: 'l.name', region: 'r.region_name', district: 'd.name', council: 'c.name', ward: 'w.name',
+  street: 's.name', point_no: 'p.point_no + 0, p.point_no', road: 'p.road_name', lat: 'p.latitude', lng: 'p.longitude',
+};
+
 const listPoints = async (projectId, filters = {}) => {
   const page = Math.max(1, parseInt(filters.page, 10) || 1);
   const limit = Math.min(200, Math.max(1, parseInt(filters.limit, 10) || 50));
   const { sql, params } = buildWhere(projectId, filters);
   const [{ total }] = await query(`SELECT COUNT(*) AS total ${JOINS} WHERE ${sql}`, params);
+  const dir = String(filters.dir).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+  const order = SORTS[filters.sort]
+    ? `${SORTS[filters.sort].split(', ').map((c) => `${c} ${dir}`).join(', ')}, p.point_id ASC`
+    : 'r.region_name, d.name, w.name, p.point_id';
   const results = await query(
-    `SELECT ${POINT_COLUMNS} ${JOINS} WHERE ${sql} ORDER BY r.region_name, d.name, w.name, p.point_id LIMIT ${limit} OFFSET ${(page - 1) * limit}`, params);
+    `SELECT ${POINT_COLUMNS} ${JOINS} WHERE ${sql} ORDER BY ${order} LIMIT ${limit} OFFSET ${(page - 1) * limit}`, params);
   return { results, page, limit, total: Number(total), totalPages: Math.max(1, Math.ceil(Number(total) / limit)) };
 };
 

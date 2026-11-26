@@ -2,17 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { geoApi } from '../../../api';
 import type { GeoFilters, GeoPin, GeoPoint, GeoSummary } from '../../../api/geo';
 import Modal from '../Modal';
+import SearchableSelect from '../SearchableSelect';
 import { toast } from '../Toast';
 import GeoMap from './GeoMap';
+import { pointTitle } from '../../../utils/geoLabels';
 import GeoImportModal from './GeoImportModal';
 
 const PAGE = 40;
 const sel = 'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-brand-400';
 const errMsg = (e: unknown, fallback: string) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
-
-/** "Camera no. 09", "Pole no. 12", "Closure no. 5": what the number is called depends on the layer. */
-const numberLabel = (layer: string) => (/camera/i.test(layer) ? 'Camera no.' : /pole/i.test(layer) ? 'Pole no.' : /closure|clouser/i.test(layer) ? 'Closure no.' : 'No.');
-const pointTitle = (p: { layer_name: string; point_no: string | null }) => (p.point_no ? `${numberLabel(p.layer_name)} ${p.point_no}` : p.layer_name);
 
 const Pin = ({ color }: { color: string }) => (
   <svg width="14" height="20" viewBox="0 0 24 34" className="flex-shrink-0">
@@ -25,10 +23,12 @@ interface Props {
   projectId: number;
   /** Admin or the project's manager: upload, export and delete. */
   canManage: boolean;
+  /** Open this point straight away (used by "show on map" in the coordinates list). */
+  openPointId?: number | null;
 }
 
 /** Google-Maps-style explorer: filters and a list on the left, the map on the right. Used in the modal and on the full page. */
-export default function GeoExplorer({ projectId, canManage }: Props) {
+export default function GeoExplorer({ projectId, canManage, openPointId }: Props) {
   const [summary, setSummary] = useState<GeoSummary | null>(null);
   const [loadError, setLoadError] = useState('');
   const [layerOff, setLayerOff] = useState<Set<number>>(new Set());
@@ -106,6 +106,14 @@ export default function GeoExplorer({ projectId, canManage }: Props) {
     return () => { dead = true; };
   }, [selectedIds, projectId]);
 
+  useEffect(() => {
+    if (!openPointId) return;
+    geoApi.get(projectId, openPointId).then((r) => {
+      setSelectedIds([r.data.point_id]); setActiveId(r.data.point_id);
+      setFocus({ lat: Number(r.data.latitude), lng: Number(r.data.longitude), nonce: Date.now() });
+    }).catch(() => undefined);
+  }, [openPointId, projectId]);
+
   const active = details.find((d) => d.point_id === activeId) ?? details[0] ?? null;
 
   const pick = (p: GeoPoint) => {
@@ -142,7 +150,7 @@ export default function GeoExplorer({ projectId, canManage }: Props) {
     <div className="flex flex-col md:flex-row h-full min-h-0 bg-white dark:bg-gray-900">
       {/* ── left panel ─────────────────────────────────────────────────────────── */}
       <aside className="w-full md:w-[340px] md:flex-shrink-0 md:border-r border-gray-200 dark:border-gray-700 flex flex-col min-h-0 max-h-[45vh] md:max-h-none">
-        <div className="p-3 space-y-3 border-b border-gray-200 dark:border-gray-700 overflow-y-auto">
+        <div className="p-3 space-y-3 border-b border-gray-200 dark:border-gray-700 max-md:overflow-y-auto">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pole no., road, street, ward…" className={sel} aria-label="Search points" />
 
           {summary && summary.layers.length > 0 && (
@@ -162,18 +170,18 @@ export default function GeoExplorer({ projectId, canManage }: Props) {
 
           {summary && summary.total > 0 && (
             <div className="grid grid-cols-2 gap-2">
-              <select aria-label="Region" className={sel} value={regionId} onChange={(e) => { setRegionId(num(e.target.value)); setDistrictId(''); setCouncilId(''); setWardId(''); }}>
-                <option value="">All regions</option>{regionOpts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
-              </select>
-              <select aria-label="District" className={sel} value={districtId} onChange={(e) => { setDistrictId(num(e.target.value)); setCouncilId(''); setWardId(''); }}>
-                <option value="">All districts</option>{districtOpts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
-              </select>
-              <select aria-label="Council" className={sel} value={councilId} onChange={(e) => { setCouncilId(num(e.target.value)); setWardId(''); }}>
-                <option value="">All councils</option>{councilOpts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
-              </select>
-              <select aria-label="Ward" className={sel} value={wardId} onChange={(e) => setWardId(num(e.target.value))}>
-                <option value="">All wards</option>{wardOpts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
-              </select>
+              <SearchableSelect compact ariaLabel="Region" placeholder="All regions" allLabel="All regions" value={String(regionId)}
+                options={regionOpts.map(([id, n]) => ({ value: String(id), label: n }))}
+                onChange={(v) => { setRegionId(num(v)); setDistrictId(''); setCouncilId(''); setWardId(''); }} />
+              <SearchableSelect compact ariaLabel="District" placeholder="All districts" allLabel="All districts" value={String(districtId)}
+                options={districtOpts.map(([id, n]) => ({ value: String(id), label: n }))}
+                onChange={(v) => { setDistrictId(num(v)); setCouncilId(''); setWardId(''); }} />
+              <SearchableSelect compact ariaLabel="Council" placeholder="All councils" allLabel="All councils" value={String(councilId)}
+                options={councilOpts.map(([id, n]) => ({ value: String(id), label: n }))}
+                onChange={(v) => { setCouncilId(num(v)); setWardId(''); }} />
+              <SearchableSelect compact ariaLabel="Ward" placeholder="All wards" allLabel="All wards" value={String(wardId)}
+                options={wardOpts.map(([id, n]) => ({ value: String(id), label: n }))}
+                onChange={(v) => setWardId(num(v))} />
             </div>
           )}
 

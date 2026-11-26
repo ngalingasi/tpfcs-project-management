@@ -74,7 +74,11 @@ CREATE TABLE IF NOT EXISTS `geo_points` (
   UNIQUE KEY `uq_geo_point_global` (`project_id`, `global_id`),
   KEY `idx_geo_project_layer` (`project_id`, `layer_id`),
   KEY `idx_geo_ward`   (`ward_id`),
-  KEY `idx_geo_street` (`street_id`)
+  KEY `idx_geo_street` (`street_id`),
+  CONSTRAINT `geo_points_project_fk` FOREIGN KEY (`project_id`) REFERENCES `projects`   (`project_id`) ON DELETE CASCADE,
+  CONSTRAINT `geo_points_layer_fk`   FOREIGN KEY (`layer_id`)   REFERENCES `geo_layers` (`layer_id`),
+  CONSTRAINT `geo_points_ward_fk`    FOREIGN KEY (`ward_id`)    REFERENCES `wards`      (`ward_id`),
+  CONSTRAINT `geo_points_street_fk`  FOREIGN KEY (`street_id`)  REFERENCES `streets`    (`street_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT IGNORE INTO `geo_layers` (`name`, `color`) VALUES
